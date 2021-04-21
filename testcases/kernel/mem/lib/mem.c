@@ -226,7 +226,7 @@ void testoom(int mempolicy, int lite, int retcode, int allow_sigkill)
 	 * run to run, which isn't reliable for oom03 cgroup test.
 	 */
 	if (access(PATH_KSM, F_OK) == -1 || lite == 1) {
-		tst_res(TINFO, "KSM is not configed or lite == 1, "
+		tst_res(TINFO, "KSM is not configured or lite == 1, "
 			 "skip OOM test for KSM pags");
 	} else {
 		tst_res(TINFO, "start OOM testing for KSM pages.");
