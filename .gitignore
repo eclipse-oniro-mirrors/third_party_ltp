@@ -61,6 +61,8 @@ patches/
 *.run-test
 *.test
 logfile.*
+*.logfile
+logfile
 
 /utils/benchmark/ebizzy-0.3/ebizzy
 /lib/tests/tst_tmpdir_test
