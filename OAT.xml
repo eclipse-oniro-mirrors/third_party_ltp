@@ -62,11 +62,38 @@ Note:If the text contains special characters, please escape them according to th
 				<policyitem type="compatibility" name="GPL-2.0+" path="ltp/testcases/.*" desc="Independent process running."/>
 				<policyitem type="compatibility" name="GPL-2.0+" path="ltp/include/mk/module.mk" desc="Independent process running."/>
 				<policyitem type="compatibility" name="GPL-2.0-or-later" path="ltp/.*" desc="Independent process running."/>
-				<policyitem type="compatibility" name="GPLStyleLicense" path="ltp/.*" desc="Independent process running."/>
+				<policyitem type="compatibility" name="GPLStyleLicense" path="ltp/testcase/open_posix_testsuite" desc="Independent process running."/>
 				<policyitem type="compatibility" name="InvalidLicense" path="ltp/.*" desc="Independent process running."/>
 				<policyitem type="compatibility" name="LGPLStyleLicense" path="ltp/.*" desc="Independent process running."/>
 				<policyitem type="compatibility" name="SPDX:GPL-2.0-or-later" path="ltp/.*" desc="Independent process running."/>
 			</policy>
 		</policylist>
 	</oatconfig>
+     <filefilterlist>
+          <filefilter desc="Files not to check" name="defaultFilter">
+               <filteritem desc="not used in ohos" name="doc" type="ltp/doc"/>
+               <filteritem desc="not used in ohos" name="include" type="ltp/include"/>
+               <filteritem desc="not used in ohos" name="lib" type="ltp/lib"/>
+               <filteritem desc="not used in ohos" name="m4" type="ltp/m4"/>
+               <filteritem desc="not used in ohos" name="lib" type="ltp/pan"/>
+               <filteritem desc="not used in ohos" name="scripts" type="ltp/scripts"/>
+               <filteritem desc="not used in ohos" name="commands" type="ltp/testcases/commands"/>
+               <filteritem desc="not used in ohos" name="cve" type="ltp/testcases/cve"/>
+               <filteritem desc="not used in ohos" name="kernel" type="ltp/testcases/kernel"/>
+               <filteritem desc="not used in ohos" name="lib" type="ltp/testcases/lib"/>
+               <filteritem desc="not used in ohos" name="misc" type="ltp/testcases/misc"/>
+               <filteritem desc="not used in ohos" name="network" type="ltp/testcases/network"/>
+               <filteritem desc="not used in ohos" name="realtime" type="ltp/testcases/realtime"/>
+               <filteritem desc="not used in ohos" name="testscripts" type="ltp/testscripts"/>
+               <filteritem desc="not used in ohos" name="testscripts" type="ltp/testscripts"/>
+               <filteritem desc="not used in ohos" name="utils" type="ltp/utils"/>
+               <filteritem desc="not used in ohos" name="tools" type="ltp/tools"/>
+               <filteritem desc="not used in ohos" name="ltpmenu" type="ltp/ltpmenu"/>
+               <filteritem desc="not used in ohos" name="runltp" type="ltp/runltp"/>
+               
+               
+
+
+          </filefilter>
+     </filefilterlist>
 </configuration>
