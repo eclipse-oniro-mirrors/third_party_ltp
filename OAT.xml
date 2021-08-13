@@ -59,37 +59,44 @@ Note:If the text contains special characters, please escape them according to th
 		<licensefile>ltp/COPYING</licensefile>
 		<policylist>
 			<policy name="projectPolicy" desc="">
-				<policyitem type="compatibility" name="GPL-2.0+" path="ltp/testcases/.*" desc="Independent process running."/>
-				<policyitem type="compatibility" name="GPL-2.0+" path="ltp/include/mk/module.mk" desc="Independent process running."/>
-				<policyitem type="compatibility" name="GPL-2.0-or-later" path="ltp/.*" desc="Independent process running."/>
-				<policyitem type="compatibility" name="GPLStyleLicense" path="ltp/testcase/open_posix_testsuite" desc="Independent process running."/>
-				<policyitem type="compatibility" name="InvalidLicense" path="ltp/.*" desc="Independent process running."/>
-				<policyitem type="compatibility" name="LGPLStyleLicense" path="ltp/.*" desc="Independent process running."/>
-				<policyitem type="compatibility" name="SPDX:GPL-2.0-or-later" path="ltp/.*" desc="Independent process running."/>
+				<policyitem type="compatibility" name="GPLStyleLicense" path="testcases/open_posix_testsuite/.*.*" desc="Independent process running."/>
+                    <policyitem type="compatibility" name="GPL-2.0+" path="testcases/open_posix_testsuite/.*.*" desc="Independent process running."/>
+                    <policyitem type="compatibility" name="GPL-2.0-or-later" path="testcases/open_posix_testsuite/.*.*" desc="Independent process running."/>
 			</policy>
 		</policylist>
-	</oatconfig>
-     <filefilterlist>
-		<filefilter name="defaultPolicyFilter" desc="Files not to check">
-            <filteritem type="filepath"  name="ltp/doc/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/include/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/lib/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/m4/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/pan/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/scripts/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/testcases/commands/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/testcases/cve/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/testcases/kernel/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/testcases/lib/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/testcases/misc/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/testcases/network/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/testcases/realtime/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/testscripts/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/utils/.*" desc="not used in ohos"/>
-            <filteritem type="filepath"  name="ltp/tools/.*" desc="not used in ohos"/>
-            <filteritem type="filename"  name="*.ltpmenu" desc="not used in ohos"/>
-            <filteritem type="filename"  name="*.runltp" desc="not used in ohos"/>
-        </filefilter>
-			
-     </filefilterlist>
+
+         <filefilterlist>
+		     <filefilter name="defaultPolicyFilter" desc="Files not to check">
+                    <filteritem type="filepath"  name="doc/.*.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="include/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="lib/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="m4/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="pan/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="scripts/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/commands/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/cve/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/kernel/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/lib/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/misc/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/network/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/realtime/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testscripts/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="utils/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="tools/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="*.ltpmenu.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="*.runltp.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="*.COPYING.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="*.IDcheck.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="*.INSTALL.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="*.Makefile.release.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="*.ltpmenu.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="*.runltp.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/open_posix_testsuite/Documentation/HOWTO_CodingGuidelines" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="libs/libltpnuma/tst_numa.c" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/kdump/lib/crasher/crasher.c" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="testcases/kdump/lib/lkdtm/lkdtm.c" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="libs/libltpuinput/tst_uinput.c" desc="not used in ohos"/>
+               </filefilter>
+          </filefilterlist>
+     </oatconfig>
 </configuration>
