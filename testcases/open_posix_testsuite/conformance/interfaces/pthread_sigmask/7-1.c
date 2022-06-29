@@ -21,10 +21,11 @@ returned by the pthread_sigmask functions.
 
 #define NUMSIGNALS (sizeof(siglist) / sizeof(siglist[0]))
 
-void *a_thread_func()
+static void *a_thread_func()
 {
 	sigset_t oactl, tempset;
-	int i, j, test_failed = 0;
+	unsigned int i, j;
+	int test_failed = 0;
 
 	int siglist[] = { SIGABRT, SIGALRM, SIGBUS, SIGCHLD,
 		SIGCONT, SIGFPE, SIGHUP, SIGILL, SIGINT,

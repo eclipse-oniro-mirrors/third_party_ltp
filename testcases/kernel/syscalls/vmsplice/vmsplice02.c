@@ -18,9 +18,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <sys/uio.h>
 #include <limits.h>
 
@@ -52,11 +50,6 @@ static struct tcase {
 
 static void setup(void)
 {
-	if (tst_fs_type(".") == TST_NFS_MAGIC) {
-		tst_brk(TCONF, "Cannot do splice() "
-			"on a file located on an NFS filesystem");
-	}
-
 	filefd = SAFE_OPEN(TESTFILE, O_WRONLY | O_CREAT, 0644);
 
 	SAFE_PIPE(pipes);
@@ -106,5 +99,9 @@ static struct tst_test test = {
 	.test = vmsplice_verify,
 	.tcnt = ARRAY_SIZE(tcases),
 	.needs_tmpdir = 1,
+	.skip_filesystems = (const char *const []) {
+		"nfs",
+		NULL
+	},
 	.min_kver = "2.6.17",
 };

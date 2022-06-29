@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2019 Google LLC
+ * Copyright (c) Linux Test Project, 2021
  */
 /**
  * @file tst_af_alg.h
@@ -60,8 +61,19 @@ void tst_alg_bind(int algfd, const char *algtype, const char *algname);
  * @param algtype The type of algorithm, such as "hash" or "skcipher"
  * @param algname The name of the algorithm, such as "sha256" or "xts(aes)"
  *
- * Return true if the algorithm is available, or false if unavailable.
- * If another error occurs, tst_brk() is called with TBROK.
+ * Return 0 if the algorithm is available, or errno if unavailable.
+ */
+int tst_try_alg(const char *algtype, const char *algname);
+
+/**
+ * Check for the availability of an algorithm.
+ *
+ * @param algtype The type of algorithm, such as "hash" or "skcipher"
+ * @param algname The name of the algorithm, such as "sha256" or "xts(aes)"
+ *
+ * Return true if the algorithm is available, or false if unavailable
+ * and call tst_res() with TCONF. If another error occurs, tst_brk() is called
+ * with TBROK unless algorithm is disabled due FIPS mode (errno ELIBBAD).
  */
 bool tst_have_alg(const char *algtype, const char *algname);
 
@@ -132,5 +144,37 @@ int tst_alg_setup(const char *algtype, const char *algname,
  */
 int tst_alg_setup_reqfd(const char *algtype, const char *algname,
 			const uint8_t *key, unsigned int keylen);
+
+/** Specification of control data to send to an AF_ALG request socket */
+struct tst_alg_sendmsg_params {
+
+	/** If true, send ALG_SET_OP with ALG_OP_ENCRYPT */
+	bool encrypt;
+
+	/** If true, send ALG_SET_OP with ALG_OP_DECRYPT */
+	bool decrypt;
+
+	/** If ivlen != 0, send ALG_SET_IV */
+	const uint8_t *iv;
+	unsigned int ivlen;
+
+	/** If assoclen != 0, send ALG_SET_AEAD_ASSOCLEN */
+	unsigned int assoclen;
+
+	/* Value to use as msghdr::msg_flags */
+	uint32_t msg_flags;
+};
+
+/**
+ * Send some data to an AF_ALG request socket, including control data.
+ * @param reqfd An AF_ALG request socket
+ * @param data The data to send
+ * @param datalen The length of data in bytes
+ * @param params Specification of the control data to send
+ *
+ * On failure, tst_brk() is called with TBROK.
+ */
+void tst_alg_sendmsg(int reqfd, const void *data, size_t datalen,
+		     const struct tst_alg_sendmsg_params *params);
 
 #endif /* TST_AF_ALG_H */

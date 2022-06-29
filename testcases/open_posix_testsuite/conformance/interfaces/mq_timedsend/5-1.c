@@ -40,14 +40,14 @@
 #define BUFFER 40
 #define MAXMSG 5
 
-char gqname[NAMESIZE];
-mqd_t gqueue;
+static char gqname[NAMESIZE];
+static mqd_t gqueue;
 
 /*
  * This handler is just used to catch the signal and stop sleep (so the
  * parent knows the child is still busy sending signals).
  */
-void stopsleep_handler(int signo LTP_ATTRIBUTE_UNUSED)
+static void stopsleep_handler(int signo PTS_ATTRIBUTE_UNUSED)
 {
 	return;
 }
@@ -58,7 +58,6 @@ int main(void)
 	char msgrcd[BUFFER];
 	const char *msgptr = MSGSTR;
 	struct mq_attr attr;
-	int unresolved = 0;
 	unsigned pri;
 
 	sprintf(gqname, "/mq_timedsend_5-1_%d", getpid());
@@ -119,7 +118,10 @@ int main(void)
 		/* receive message and allow blocked send to complete */
 		if (mq_receive(gqueue, msgrcd, BUFFER, &pri) == -1) {
 			perror("mq_receive() did not return success");
-			unresolved = 1;
+			kill(pid, SIGKILL);	//kill child
+			mq_close(gqueue);
+			mq_unlink(gqname);
+			return PTS_UNRESOLVED;
 		}
 
 		if (sleep(3) == 0) {

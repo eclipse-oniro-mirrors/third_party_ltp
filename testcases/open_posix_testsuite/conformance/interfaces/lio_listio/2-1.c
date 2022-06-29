@@ -28,33 +28,35 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
 #include "posixtest.h"
+#include "tempfile.h"
 
 #define TNAME "lio_listio/2-1.c"
 
-#define NUM_AIOCBS	10
+#define NUM_AIOCBS	256
 #define BUF_SIZE	1024
 
 static volatile int received_selected;
 static volatile int received_all;
 
-void sigrt1_handler(int signum LTP_ATTRIBUTE_UNUSED,
+static void sigrt1_handler(int signum PTS_ATTRIBUTE_UNUSED,
 	siginfo_t *info,
-	void *context LTP_ATTRIBUTE_UNUSED)
+	void *context PTS_ATTRIBUTE_UNUSED)
 {
 	received_selected = info->si_value.sival_int;
 }
 
-void sigrt2_handler(int signum LTP_ATTRIBUTE_UNUSED,
-	siginfo_t *info LTP_ATTRIBUTE_UNUSED,
-	void *context LTP_ATTRIBUTE_UNUSED)
+static void sigrt2_handler(int signum PTS_ATTRIBUTE_UNUSED,
+	siginfo_t *info PTS_ATTRIBUTE_UNUSED,
+	void *context PTS_ATTRIBUTE_UNUSED)
 {
 	received_all = 1;
 }
 
 int main(void)
 {
-	char tmpfname[256];
+	char tmpfname[PATH_MAX];
 	int fd;
 
 	struct aiocb *aiocbs[NUM_AIOCBS];
@@ -69,8 +71,7 @@ int main(void)
 	if (sysconf(_SC_ASYNCHRONOUS_IO) < 200112L)
 		exit(PTS_UNSUPPORTED);
 
-	snprintf(tmpfname, sizeof(tmpfname), "/tmp/pts_lio_listio_2_1_%d",
-		 getpid());
+	PTS_GET_TMP_FILENAME(tmpfname, "pts_lio_listio_2_1");
 	unlink(tmpfname);
 
 	fd = open(tmpfname, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
@@ -97,7 +98,7 @@ int main(void)
 		memset(aiocbs[i], 0, sizeof(struct aiocb));
 
 		aiocbs[i]->aio_fildes = fd;
-		aiocbs[i]->aio_offset = 0;
+		aiocbs[i]->aio_offset = i * BUF_SIZE;
 		aiocbs[i]->aio_buf = &bufs[i * BUF_SIZE];
 		aiocbs[i]->aio_nbytes = BUF_SIZE;
 		aiocbs[i]->aio_lio_opcode = LIO_WRITE;

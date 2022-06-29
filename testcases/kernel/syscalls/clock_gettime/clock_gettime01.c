@@ -17,6 +17,7 @@
  */
 
 #include "config.h"
+#include "time64_variants.h"
 #include "tst_timer.h"
 #include "tst_safe_clocks.h"
 
@@ -58,36 +59,40 @@ static struct test_case tc[] = {
 
 static struct tst_ts spec;
 
-static struct test_variants {
-	int (*func)(clockid_t clk_id, void *ts);
-	enum tst_ts_type type;
-	char *desc;
-} variants[] = {
-	{ .func = libc_clock_gettime, .type = TST_LIBC_TIMESPEC, .desc = "vDSO or syscall with libc spec"},
+static struct time64_variants variants[] = {
+	{ .clock_gettime = libc_clock_gettime, .ts_type = TST_LIBC_TIMESPEC, .desc = "vDSO or syscall with libc spec"},
 
 #if (__NR_clock_gettime != __LTP__NR_INVALID_SYSCALL)
-	{ .func = sys_clock_gettime, .type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
+	{ .clock_gettime = sys_clock_gettime, .ts_type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
 #endif
 
 #if (__NR_clock_gettime64 != __LTP__NR_INVALID_SYSCALL)
-	{ .func = sys_clock_gettime64, .type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
+	{ .clock_gettime = sys_clock_gettime64, .ts_type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
 #endif
 };
 
 static void setup(void)
 {
+	long unsigned utime;
+
 	tst_res(TINFO, "Testing variant: %s", variants[tst_variant].desc);
+
+	do {
+		SAFE_FILE_SCANF("/proc/self/stat",
+			"%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu",
+			&utime);
+	} while (utime == 0);
 }
 
 static void verify_clock_gettime(unsigned int i)
 {
-	struct test_variants *tv = &variants[tst_variant];
+	struct time64_variants *tv = &variants[tst_variant];
 	int ret;
 
 	memset(&spec, 0, sizeof(spec));
-	spec.type = tv->type;
+	spec.type = tv->ts_type;
 
-	TEST(tv->func(tc[i].clktype, tst_ts_get(&spec)));
+	TEST(tv->clock_gettime(tc[i].clktype, tst_ts_get(&spec)));
 
 	if (TST_RET == -1) {
 		/* errors: allow unsupported clock types */
@@ -121,4 +126,5 @@ static struct tst_test test = {
 	.test_variants = ARRAY_SIZE(variants),
 	.setup = setup,
 	.needs_root = 1,
+	.timeout = 10,
 };

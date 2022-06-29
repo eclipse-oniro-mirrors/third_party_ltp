@@ -19,7 +19,7 @@ setup()
 	[ -f "$EVM_FILE" ] || tst_brk TCONF "EVM not enabled in kernel"
 	[ $(cat $EVM_FILE) -eq 1 ] || tst_brk TCONF "EVM not enabled for this boot"
 
-	check_ima_policy "appraise_tcb"
+	require_ima_policy_cmdline "appraise_tcb"
 
 	lower="$TST_MNTPOINT/lower"
 	upper="$TST_MNTPOINT/upper"
@@ -34,7 +34,7 @@ setup()
 	TST_FS_TYPE="overlay"
 
 	mntpoint_backup="$TST_MNTPOINT"
-	TST_MNTPOINT="$merged"
+	TST_MNTPOINT="$PWD/$merged"
 
 	params_backup="$TST_MNT_PARAMS"
 	TST_MNT_PARAMS="-o lowerdir=$lower,upperdir=$upper,workdir=$work"
@@ -83,7 +83,7 @@ cleanup()
 {
 	[ -n "$mounted" ] || return 0
 
-	tst_umount $TST_DEVICE
+	tst_umount $TST_MNTPOINT
 
 	TST_DEVICE="$device_backup"
 	TST_FS_TYPE="$fs_type_backup"

@@ -92,9 +92,10 @@
 /***********************************    Real Test   *****************************************/
 /********************************************************************************************/
 
-sem_t sem_sync;
+static sem_t sem_sync;
+static unsigned int sc;
 
-void *threaded(void *arg)
+static void *threaded(void *arg)
 {
 	int ret = 0;
 

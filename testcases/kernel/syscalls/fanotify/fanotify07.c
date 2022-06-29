@@ -3,17 +3,21 @@
  * Copyright (c) 2017 SUSE.  All Rights Reserved.
  *
  * Started by Jan Kara <jack@suse.cz>
- *
- * DESCRIPTION
- *     Check that fanotify permission events are handled properly on instance
- *     destruction.
- *
+ */
+
+/*\
+ * [Description]
+ * Check that fanotify permission events are handled properly on instance destruction.
+ */
+
+/*
  * Kernel crashes should be fixed by:
  *  96d41019e3ac "fanotify: fix list corruption in fanotify_get_response()"
  *
  * Kernel hangs should be fixed by:
  *  05f0e38724e8 "fanotify: Release SRCU lock when waiting for userspace response"
  */
+
 #define _GNU_SOURCE
 #include "config.h"
 
@@ -22,7 +26,6 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/fcntl.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <string.h>
@@ -30,10 +33,9 @@
 #include <sys/syscall.h>
 #include "tst_test.h"
 #include "lapi/syscalls.h"
-#include "fanotify.h"
 
-#if defined(HAVE_SYS_FANOTIFY_H)
-#include <sys/fanotify.h>
+#ifdef HAVE_SYS_FANOTIFY_H
+#include "fanotify.h"
 
 #define BUF_SIZE 256
 static char fname[BUF_SIZE];
@@ -54,14 +56,12 @@ static void generate_events(void)
 	/*
 	 * generate sequence of events
 	 */
-	if ((fd = open(fname, O_RDWR | O_CREAT, 0700)) == -1)
-		exit(1);
+	fd = SAFE_OPEN(fname, O_RDWR | O_CREAT, 0700);
 
 	/* Run until killed... */
 	while (1) {
-		lseek(fd, 0, SEEK_SET);
-		if (read(fd, buf, BUF_SIZE) == -1)
-			exit(3);
+		SAFE_LSEEK(fd, 0, SEEK_SET);
+		SAFE_READ(0, fd, buf, BUF_SIZE);
 	}
 }
 
@@ -73,7 +73,7 @@ static void run_children(void)
 		child_pid[i] = SAFE_FORK();
 		if (!child_pid[i]) {
 			/* Child will generate events now */
-			close(fd_notify);
+			SAFE_CLOSE(fd_notify);
 			generate_events();
 			exit(0);
 		}
@@ -85,13 +85,23 @@ static int stop_children(void)
 	int child_ret;
 	int i, ret = 0;
 
-	for (i = 0; i < MAX_CHILDREN; i++)
+	for (i = 0; i < MAX_CHILDREN; i++) {
+		if (!child_pid[i])
+			continue;
+
 		SAFE_KILL(child_pid[i], SIGKILL);
+	}
 
 	for (i = 0; i < MAX_CHILDREN; i++) {
+		if (!child_pid[i])
+			continue;
+
 		SAFE_WAITPID(child_pid[i], &child_ret, 0);
+
 		if (!WIFSIGNALED(child_ret))
 			ret = 1;
+
+		child_pid[i] = 0;
 	}
 
 	return ret;
@@ -102,20 +112,7 @@ static int setup_instance(void)
 	int fd;
 
 	fd = SAFE_FANOTIFY_INIT(FAN_CLASS_CONTENT, O_RDONLY);
-
-	if (fanotify_mark(fd, FAN_MARK_ADD, FAN_ACCESS_PERM, AT_FDCWD,
-			  fname) < 0) {
-		close(fd);
-		if (errno == EINVAL) {
-			tst_brk(TCONF | TERRNO,
-				"CONFIG_FANOTIFY_ACCESS_PERMISSIONS not "
-				"configured in kernel?");
-		} else {
-			tst_brk(TBROK | TERRNO,
-				"fanotify_mark (%d, FAN_MARK_ADD, FAN_ACCESS_PERM, "
-				"AT_FDCWD, %s) failed.", fd, fname);
-		}
-	}
+	SAFE_FANOTIFY_MARK(fd, FAN_MARK_ADD, FAN_ACCESS_PERM, AT_FDCWD, fname);
 
 	return fd;
 }
@@ -173,9 +170,8 @@ static void test_fanotify(void)
 	 * unanswered fanotify events block notification subsystem.
 	 */
 	newfd = setup_instance();
-	if (close(newfd)) {
-		tst_brk(TBROK | TERRNO, "close(%d) failed", newfd);
-	}
+
+	SAFE_CLOSE(newfd);
 
 	tst_res(TPASS, "second instance destroyed successfully");
 
@@ -195,12 +191,16 @@ static void test_fanotify(void)
 
 static void setup(void)
 {
+	require_fanotify_access_permissions_supported_by_kernel();
+
 	sprintf(fname, "fname_%d", getpid());
 	SAFE_FILE_PRINTF(fname, "%s", fname);
 }
 
 static void cleanup(void)
 {
+	stop_children();
+
 	if (fd_notify > 0)
 		SAFE_CLOSE(fd_notify);
 }

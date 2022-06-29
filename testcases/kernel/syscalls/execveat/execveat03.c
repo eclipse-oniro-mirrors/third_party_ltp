@@ -29,7 +29,6 @@
 #include <string.h>
 #include <sys/syscall.h>
 #include <sys/mount.h>
-#include <fcntl.h>
 #include "tst_test.h"
 #include "lapi/execveat.h"
 #include "lapi/fcntl.h"
@@ -51,7 +50,7 @@ static void do_child(void)
 	SAFE_UNLINK(TEST_FILE_PATH);
 
 	TEST(execveat(fd, "", argv, environ, AT_EMPTY_PATH));
-	tst_res(TFAIL | TERRNO, "execveat() returned unexpected errno");
+	tst_res(TFAIL | TTERRNO, "execveat() returned unexpected errno");
 }
 
 static void verify_execveat(void)

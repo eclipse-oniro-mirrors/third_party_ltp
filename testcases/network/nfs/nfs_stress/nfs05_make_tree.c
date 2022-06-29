@@ -60,9 +60,9 @@ static int file_num = 100;
 static char *t_arg, *d_arg, *f_arg;
 
 static struct tst_option opts[] = {
-	{"t:", &t_arg, "-t x    Number of threads to generate, default: 8\n"},
-	{"d:", &d_arg, "-d x    Number of subdirs to generate, default: 100\n"},
-	{"f:", &f_arg, "-f x    Number of c files in each dir, default: 100\n"},
+	{"t:", &t_arg, "Number of threads to generate, default: 8"},
+	{"d:", &d_arg, "Number of subdirs to generate, default: 100"},
+	{"f:", &f_arg, "Number of c files in each dir, default: 100"},
 	{NULL, NULL, NULL}
 };
 
@@ -104,7 +104,7 @@ static void *thread_fn(LTP_ATTRIBUTE_UNUSED void *args)
 				"\treturn 0;\n}\n";
 
 	const char make_buf_n[] = "CFLAGS := -O -w -g\n"
-				  "SRCS=$(wildcard *.c)\n"
+				  "SRCS=$(sort $(wildcard *.c))\n"
 				  "TARGETS=$(SRCS:.c=)\n"
 				  "all: $(TARGETS)\n"
 				  "$(TARGETS): %: %.c\n"
@@ -114,7 +114,7 @@ static void *thread_fn(LTP_ATTRIBUTE_UNUSED void *args)
 
 	const char make_buf[] = "CFLAGS := -O -w -g\n"
 				"SUBDIR = dir\n"
-				"SRCS=$(wildcard *.c)\n"
+				"SRCS=$(sort $(wildcard *.c))\n"
 				"TARGETS=$(SRCS:.c=)\n"
 				"all: $(SUBDIR) $(TARGETS)\n"
 				"$(TARGETS): %: %.c\n"

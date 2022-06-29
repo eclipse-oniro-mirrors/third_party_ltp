@@ -13,9 +13,9 @@ AC_CONFIG_FILES([ \
     execltp \
 ])
 
-AM_MAINTAINER_MODE([enable])
+AC_ARG_VAR(HOSTCC, [The C compiler on the host])
 
-AM_CONDITIONAL(CROSS_COMPILATION, test x$cross_compiling = xyes)
+AM_MAINTAINER_MODE([enable])
 
 AC_CANONICAL_HOST
 
@@ -30,25 +30,32 @@ AC_DEFUN([AC_PROG_STRIP], [AC_CHECK_TOOL(STRIP, strip, :)])
 AC_PROG_STRIP
 AC_PROG_YACC
 
+m4_ifndef([PKG_CHECK_EXISTS],
+	[m4_fatal([must install pkg-config or pkgconfig and pkg.m4 macro (usual dependency), see INSTALL])])
+
 AC_PREFIX_DEFAULT(/opt/ltp)
 
 AC_CHECK_DECLS([IFLA_NET_NS_PID],,,[#include <linux/if_link.h>])
 AC_CHECK_DECLS([MADV_MERGEABLE],,,[#include <sys/mman.h>])
 AC_CHECK_DECLS([PR_CAPBSET_DROP, PR_CAPBSET_READ],,,[#include <sys/prctl.h>])
+AC_CHECK_DECLS([SEM_STAT_ANY],,,[#include <sys/sem.h>])
 
-AC_CHECK_HEADERS([ \
+AC_CHECK_HEADERS_ONCE([ \
     asm/ldt.h \
+    emmintrin.h \
     ifaddrs.h \
     keyutils.h \
     linux/can.h \
     linux/cgroupstats.h \
     linux/cryptouser.h \
+    linux/close_range.h \
     linux/dccp.h \
     linux/fs.h \
     linux/genetlink.h \
     linux/if_alg.h \
     linux/if_ether.h \
     linux/if_packet.h \
+    linux/io_uring.h \
     linux/keyctl.h \
     linux/mempolicy.h \
     linux/module.h \
@@ -58,7 +65,6 @@ AC_CHECK_HEADERS([ \
     linux/tty.h \
     linux/types.h \
     linux/userfaultfd.h \
-    mm.h \
     netinet/sctp.h \
     pthread.h \
     sys/epoll.h \
@@ -74,11 +80,14 @@ AC_CHECK_HEADERS([ \
 ])
 AC_CHECK_HEADERS(fts.h, [have_fts=1])
 AC_SUBST(HAVE_FTS_H, $have_fts)
+AC_CHECK_HEADERS(linux/vm_sockets.h, [], [], [#include <sys/socket.h>])
 
-AC_CHECK_FUNCS([ \
+AC_CHECK_FUNCS_ONCE([ \
     clone3 \
+    close_range \
     copy_file_range \
     epoll_pwait \
+    epoll_pwait2 \
     execveat \
     fallocate \
     fchownat \
@@ -87,6 +96,7 @@ AC_CHECK_FUNCS([ \
     fsopen \
     fspick \
     fstatat \
+    getauxval \
     getdents \
     getdents64 \
     io_pgetevents \
@@ -94,6 +104,9 @@ AC_CHECK_FUNCS([ \
     io_uring_register \
     io_uring_enter \
     kcmp \
+    mallinfo \
+    mallinfo2 \
+    mallopt \
     mkdirat \
     mknodat \
     modify_ldt \
@@ -110,12 +123,15 @@ AC_CHECK_FUNCS([ \
     profil \
     pwritev \
     pwritev2 \
+    quotactl_fd \
+    rand_r \
     readlinkat \
     recvmmsg \
     renameat \
     renameat2 \
     sched_getcpu \
     sendmmsg \
+    sethostid \
     setns \
     sigpending \
     splice \
@@ -136,6 +152,10 @@ AC_CHECK_FUNCS(mkdtemp,[],AC_MSG_ERROR(mkdtemp() not found!))
 AC_CHECK_MEMBERS([struct fanotify_event_info_fid.fsid.__val],,,[#include <sys/fanotify.h>])
 AC_CHECK_MEMBERS([struct perf_event_mmap_page.aux_head],,,[#include <linux/perf_event.h>])
 AC_CHECK_MEMBERS([struct sigaction.sa_sigaction],[],[],[#include <signal.h>])
+AC_CHECK_MEMBERS([struct statx.stx_mnt_id],,,[
+#define _GNU_SOURCE
+#include <sys/stat.h>
+])
 
 AC_CHECK_MEMBERS([struct utsname.domainname],,,[
 #define _GNU_SOURCE
@@ -144,12 +164,21 @@ AC_CHECK_MEMBERS([struct utsname.domainname],,,[
 
 AC_CHECK_TYPES([enum kcmp_type],,,[#include <linux/kcmp.h>])
 AC_CHECK_TYPES([struct acct_v3],,,[#include <sys/acct.h>])
-AC_CHECK_TYPES([struct fanotify_event_info_fid],,,[#include <sys/fanotify.h>])
-AC_CHECK_TYPES([struct fanotify_event_info_header],,,[#include <sys/fanotify.h>])
+AC_CHECK_TYPES([struct af_alg_iv, struct sockaddr_alg],,,[# include <linux/if_alg.h>])
+AC_CHECK_TYPES([struct fanotify_event_info_fid, struct fanotify_event_info_error,
+		struct fanotify_event_info_header, struct fanotify_event_info_pidfd],,,[#include <sys/fanotify.h>])
 AC_CHECK_TYPES([struct file_dedupe_range],,,[#include <linux/fs.h>])
+
+AC_CHECK_TYPES([struct file_handle],,,[
+#define _GNU_SOURCE
+#include <fcntl.h>
+])
+
 AC_CHECK_TYPES([struct fs_quota_statv],,,[#include <xfs/xqm.h>])
 AC_CHECK_TYPES([struct if_nextdqblk],,,[#include <linux/quota.h>])
 AC_CHECK_TYPES([struct iovec],,,[#include <sys/uio.h>])
+AC_CHECK_TYPES([struct ipc64_perm],,,[#include <sys/ipcbuf.h>])
+AC_CHECK_TYPES([struct loop_config],,,[#include <linux/loop.h>])
 
 AC_CHECK_TYPES([struct mmsghdr],,,[
 #define _GNU_SOURCE
@@ -157,10 +186,15 @@ AC_CHECK_TYPES([struct mmsghdr],,,[
 #include <sys/socket.h>
 ])
 
+AC_CHECK_TYPES([struct msqid64_ds],,,[#include <sys/msgbuf.h>])
+
 AC_CHECK_TYPES([struct rlimit64],,,[
 #define _LARGEFILE64_SOURCE
 #include <sys/resource.h>
 ])
+
+AC_CHECK_TYPES([struct semid64_ds],,,[#include <sys/sem.h>])
+AC_CHECK_TYPES([struct shmid64_ds],,,[#include <sys/shmbuf.h>])
 
 AC_CHECK_TYPES([struct statx, struct statx_timestamp],,,[
 #define _GNU_SOURCE
@@ -168,16 +202,8 @@ AC_CHECK_TYPES([struct statx, struct statx_timestamp],,,[
 ])
 
 AC_CHECK_TYPES([struct termio],,,[#include <sys/ioctl.h>])
-
-AC_CHECK_TYPES([struct tpacket_req3],,,[
-#ifdef HAVE_LINUX_IF_PACKET_H
-# include <linux/if_packet.h>
-#endif
-])
-
-AC_CHECK_TYPES([struct user_desc, struct modify_ldt_ldt_s],[],[],[
-#include <asm/ldt.h>
-])
+AC_CHECK_TYPES([struct tpacket_req3],,,[# include <linux/if_packet.h>])
+AC_CHECK_TYPES([struct user_desc, struct modify_ldt_ldt_s],[],[],[#include <asm/ldt.h>])
 
 AC_CHECK_TYPES([struct xt_entry_match, struct xt_entry_target],,,[
 #include <sys/types.h>
@@ -187,9 +213,12 @@ AC_CHECK_TYPES([struct xt_entry_match, struct xt_entry_target],,,[
 #include <linux/netfilter_ipv4/ip_tables.h>
 ])
 
+AC_CHECK_TYPES([struct __kernel_old_timeval, struct __kernel_old_timespec, struct __kernel_timespec,
+                struct __kernel_old_itimerspec, struct __kernel_itimerspec],,,[#include <sys/socket.h>])
+
 # Tools knobs
 
-# Expect
+# Bash
 AC_ARG_WITH([bash],
   [AC_HELP_STRING([--with-bash],
     [have the Bourne Again Shell interpreter])],
@@ -202,6 +231,34 @@ else
     AC_SUBST([WITH_BASH],["no"])
 fi
 
+# metadata
+AC_ARG_ENABLE([metadata],
+  [AC_HELP_STRING([--disable-metadata],
+	[Disable metadata generation (both HTML and PDF, default no)])],
+  [], [enable_metadata=yes]
+)
+AC_ARG_ENABLE([metadata_html],
+  [AC_HELP_STRING([--disable-metadata-html],
+	[Disable metadata HTML generation (default no)])],
+  [], [enable_metadata_html=yes]
+)
+
+AC_ARG_ENABLE([metadata_pdf],
+  [AC_HELP_STRING([--enable-metadata-pdf],
+	[Enable metadata PDF generation (default no)])],
+  [], [enable_metadata_pdf=no]
+)
+
+AC_ARG_WITH([metadata_generator],
+  [AC_HELP_STRING([--with-metadata-generator=asciidoc|asciidoctor],
+	[Specify metadata generator to use (default autodetect)])],
+  [with_metadata_generator=$withval],
+  [with_metadata_generator=detect]
+)
+
+LTP_DOCPARSE
+
+# Expect
 AC_ARG_WITH([expect],
   [AC_HELP_STRING([--with-expect],
     [have the Tcl/expect library])],
@@ -313,7 +370,7 @@ LTP_CHECK_SYSCALL_FCNTL
 
 if test "x$with_numa" = xyes; then
 	LTP_CHECK_SYSCALL_NUMA
-	numa_error_msg="test requires libnuma >= 2 and it's development packages"
+	numa_error_msg="test requires libnuma development packages with LIBNUMA_API_VERSION >= 2"
 else
 	numa_error_msg="NUMA support was disabled during build"
 fi
@@ -328,3 +385,26 @@ test "x$with_tirpc" = xyes && LTP_CHECK_TIRPC
 LTP_DETECT_HOST_CPU
 
 AC_OUTPUT
+
+cat << EOF
+
+TESTSUITES
+open posix testsuite: ${with_open_posix_testsuite:-no}
+realtime testsuite: ${with_realtime_testsuite:-no}
+
+LIBRARIES
+keyutils: ${have_keyutils:-no}
+libacl: ${have_libacl:-no}
+libaio: ${have_libaio:-no} (aio: ${have_aio:-no})
+libcap: $cap_libs (newer: ${has_newer_libcap:-no})
+libcrypto: $have_libcrypto (sha: ${have_sha:-no})
+libmnl: ${have_libmnl:-no}
+libnuma: ${have_libnuma:-no} (headers: ${have_numa_headers:-no}, v2 headers: ${have_numa_headers_v2:-no})
+libtirpc: ${have_libtirpc:-no}
+glibc SUN-RPC: ${have_rpc_glibc:-no}
+
+METADATA
+metadata generator: $with_metadata_generator
+HTML metadata: $with_metadata_html
+PDF metadata: $with_metadata_pdf
+EOF

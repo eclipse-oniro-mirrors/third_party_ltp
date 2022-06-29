@@ -32,20 +32,20 @@
 #define    THREAD_NUM  	6
 #define    LOOPS     	3
 
-void *func(void *parm);
+static void *func(void *parm);
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-int value;			/* value protected by mutex */
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+static int value;			/* value protected by mutex */
 
 int main(void)
 {
-	int i, rc;
+	int i;
 	pthread_t threads[THREAD_NUM];
 
 	/* Create threads */
 	fprintf(stderr, "Creating %d threads\n", THREAD_NUM);
 	for (i = 0; i < THREAD_NUM; ++i)
-		rc = pthread_create(&threads[i], NULL, func, NULL);
+		pthread_create(&threads[i], NULL, func, NULL);
 
 	/* Wait to join all threads */
 	for (i = 0; i < THREAD_NUM; ++i)
@@ -65,7 +65,7 @@ int main(void)
 	return PTS_PASS;
 }
 
-void *func(void *parm LTP_ATTRIBUTE_UNUSED)
+static void *func(void *parm PTS_ATTRIBUTE_UNUSED)
 {
 	int i, tmp;
 	int rc = 0;

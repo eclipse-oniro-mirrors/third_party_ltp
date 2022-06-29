@@ -4,11 +4,11 @@
  * Email: code@zilogic.com
  */
 
-/*
- * Test statx
+/*\
+ * [Description]
  *
- * 1) STATX_ATTR_ENCRYPTED - A key is required for the file to be encrypted by
- *                          the filesystem.
+ * Test statx syscall with STATX_ATTR_ENCRYPTED flag, setting a key is required
+ * for the file to be encrypted by the filesystem.
  *
  * e4crypt is used to set the encrypt flag (currently supported only by ext4).
  *
@@ -16,7 +16,7 @@
  * First directory has all flags set.
  * Second directory has no flags set.
  *
- * Minimum kernel version required is 4.11.
+ * Minimum e2fsprogs version required is 1.43.
  */
 
 #define _GNU_SOURCE
@@ -72,7 +72,7 @@ static void test_unflagged(void)
 		tst_res(TFAIL, "STATX_ATTR_ENCRYPTED flag is set");
 }
 
-struct test_cases {
+static struct test_cases {
 	void (*tfunc)(void);
 } tcases[] = {
 	{&test_flagged},
@@ -101,10 +101,7 @@ static void setup(void)
 
 	ret = tst_system("echo qwery | e4crypt add_key "TESTDIR_FLAGGED);
 
-	if (WEXITSTATUS(ret) == 127)
-		tst_brk(TCONF, "e4crypt not installed!");
-
-	if (WEXITSTATUS(ret))
+	if (ret)
 		tst_brk(TCONF, "e4crypt failed (CONFIG_EXT4_ENCRYPTION not set?)");
 }
 
@@ -124,4 +121,9 @@ static struct tst_test test = {
 	.needs_device = 1,
 	.mntpoint = MNTPOINT,
 	.dev_fs_type = "ext4",
+	.needs_cmds = (const char *[]) {
+		"mkfs.ext4 >= 1.43.0",
+		"e4crypt",
+		NULL
+	}
 };

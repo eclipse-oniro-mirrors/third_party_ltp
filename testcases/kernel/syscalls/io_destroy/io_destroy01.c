@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   Copyright (c) Crackerjack Project., 2007
- *   Copyright (c) 2011 Cyril Hrubis <chrubis@suse.cz>
- *   Copyright (c) 2017 Xiao Yang <yangx.jy@cn.fujitsu.com>
+ * Copyright (c) Crackerjack Project., 2007
+ * Ported from Crackerjack to LTP by Masatake YAMATO <yamato@redhat.com>
+ * Copyright (c) 2011 Cyril Hrubis <chrubis@suse.cz>
+ * Copyright (c) 2017 Xiao Yang <yangx.jy@cn.fujitsu.com>
  */
 
-/* Porting from Crackerjack to LTP is done
- * by Masatake YAMATO <yamato@redhat.com>
+/*\
+ * [Description]
  *
- * Description:
- * io_destroy(2) fails and returns -EINVAL if ctx is invalid.
+ * Test io_destroy invoked via libaio with invalid ctx and expects it to
+ * return -EINVAL.
  */
 
 #include <errno.h>
@@ -25,21 +26,25 @@ static void verify_io_destroy(void)
 	io_context_t ctx;
 
 	memset(&ctx, 0xff, sizeof(ctx));
-
 	TEST(io_destroy(ctx));
+
 	if (TST_RET == 0) {
 		tst_res(TFAIL, "io_destroy() succeeded unexpectedly");
 		return;
 	}
 
-	if (TST_RET == -EINVAL) {
-		tst_res(TPASS,
-			"io_destroy() failed as expected, returned -EINVAL");
-	} else {
-		tst_res(TFAIL, "io_destroy() failed unexpectedly, "
-			"returned -%s expected -EINVAL",
-			tst_strerrno(-TST_RET));
+	if (TST_RET == -ENOSYS) {
+		tst_res(TCONF, "io_destroy() not supported");
+		return;
 	}
+
+	if (TST_RET == -EINVAL) {
+		tst_res(TPASS, "io_destroy() failed as expected, returned -EINVAL");
+		return;
+	}
+
+	tst_res(TFAIL, "io_destroy() failed unexpectedly, returned -%s expected -EINVAL",
+		tst_strerrno(-TST_RET));
 }
 
 static struct tst_test test = {

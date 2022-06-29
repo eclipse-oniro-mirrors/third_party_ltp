@@ -89,25 +89,20 @@
 /***********************************    Real Test   *****************************************/
 /********************************************************************************************/
 
-int global = 0;
+static int global = 0;
 
-/* atexit() routines */
-void at1(void)
-{
-	global +=1;
-}
-
-void at2(void)
+/* atexit() routine */
+static void at2(void)
 {
 	global +=2;
 }
 
 /* Thread routine */
-void *threaded(void *arg LTP_ATTRIBUTE_UNUSED)
+static void *threaded(void *arg PTS_ATTRIBUTE_UNUSED)
 {
 	int ret = 0;
 
-	/* Note that this funtion will be registered once again for each scenario.
+	/* Note that this function will be registered once again for each scenario.
 	   POSIX requires the ability to register at least 32 functions so it should
 	   not be an issue in our case, as long as we don't get more than 32 scenarii
 	   (with joinable threads) */
@@ -127,7 +122,7 @@ int main(void)
 	int ret = 0;
 	void *rval;
 	pthread_t child;
-	int i;
+	unsigned int i;
 
 	output_init();
 

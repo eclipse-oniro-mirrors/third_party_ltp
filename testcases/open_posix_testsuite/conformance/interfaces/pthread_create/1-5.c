@@ -97,14 +97,11 @@
 /********************************************************************************************/
 
 /* The overflow function is used to test the stack overflow */
-void *overflow(void *arg)
+static void *overflow(void *arg)
 {
 	void *current;
-	void *pad[50];		/* We want to consume the stack quickly */
 	long stacksize = sysconf(_SC_THREAD_STACK_MIN);	/* make sure we touch the current stack memory */
 	int ret = 0;
-
-	pad[1] = NULL;		/* so compiler stops complaining about unused variables */
 
 	if (arg == NULL) {
 		/* first call */
@@ -147,7 +144,7 @@ void *overflow(void *arg)
 	}
 }
 
-void *threaded(void *arg)
+static void *threaded(void *arg)
 {
 	int ret = 0;
 

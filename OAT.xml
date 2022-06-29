@@ -62,6 +62,10 @@ Note:If the text contains special characters, please escape them according to th
 				<policyitem type="compatibility" name="GPLStyleLicense" path="testcases/open_posix_testsuite/.*.*" desc="Independent process running."/>
                     <policyitem type="compatibility" name="GPL-2.0+" path="testcases/open_posix_testsuite/.*.*" desc="Independent process running."/>
                     <policyitem type="compatibility" name="GPL-2.0-or-later" path="testcases/open_posix_testsuite/.*.*" desc="Independent process running."/>
+                    <policyitem type="compatibility" name="GPL-2.0-or-later" path="libs/.*.*" desc="Independent process running."/>
+                    <policyitem type="compatibility" name="GPL-2.0-or-later" path="lib/.*.*" desc="Independent process running."/>
+                    <policyitem type="compatibility" name="GPL-2.0-or-later" path="docparse/.*.*" desc="Independent process running."/>
+                    <policyitem type="compatibility" name="GPL-2.0-or-later" path="metadata/.*.*" desc="Independent process running."/>
 			</policy>
 		</policylist>
 
@@ -70,6 +74,7 @@ Note:If the text contains special characters, please escape them according to th
                     <filteritem type="filepath"  name="doc/.*.*" desc="not used in ohos"/>
                     <filteritem type="filepath"  name="include/.*" desc="not used in ohos"/>
                     <filteritem type="filepath"  name="lib/.*" desc="not used in ohos"/>
+                    <filteritem type="filepath"  name="libs/.*" desc="not used in ohos"/>
                     <filteritem type="filepath"  name="m4/.*" desc="not used in ohos"/>
                     <filteritem type="filepath"  name="pan/.*" desc="not used in ohos"/>
                     <filteritem type="filepath"  name="scripts/.*" desc="not used in ohos"/>

@@ -91,7 +91,7 @@
 /***********************************    Real Test   *****************************************/
 /********************************************************************************************/
 
-void *threaded(void *arg LTP_ATTRIBUTE_UNUSED)
+static void *threaded(void *arg PTS_ATTRIBUTE_UNUSED)
 {
 	pthread_exit(NULL + 1);
 
@@ -105,7 +105,7 @@ int main(void)
 	int ret = 0;
 	void *rval;
 	pthread_t child;
-	int i;
+	unsigned int i;
 
 	output_init();
 

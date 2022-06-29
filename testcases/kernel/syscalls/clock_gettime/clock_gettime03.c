@@ -1,23 +1,21 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
-
-  Copyright (c) 2020 Cyril Hrubis <chrubis@suse.cz>
-
+ * Copyright (c) 2020 Cyril Hrubis <chrubis@suse.cz>
  */
+
 /*
-
-  Basic test for timer namespaces.
-
-  After a call to unshare(CLONE_NEWTIME) a new timer namespace is created, the
-  process that has called the unshare() can adjust offsets for CLOCK_MONOTONIC
-  and CLOCK_BOOTTIME for its children by writing to the '/proc/self/timens_offsets'.
-
-  The child processes also switch to the initial parent namespace and checks
-  that the offset is set to 0.
-
+ * [Description]
+ *
+ * After a call to unshare(CLONE_NEWTIME) a new timer namespace is created, the
+ * process that has called the unshare() can adjust offsets for CLOCK_MONOTONIC
+ * and CLOCK_BOOTTIME for its children by writing to the '/proc/self/timens_offsets'.
+ *
+ * The child processes also switch to the initial parent namespace and checks
+ * that the offset is set to 0.
  */
 
 #define _GNU_SOURCE
+#include "time64_variants.h"
 #include "tst_safe_clocks.h"
 #include "tst_timer.h"
 #include "lapi/namespaces_constants.h"
@@ -40,27 +38,23 @@ static struct tcase {
 static struct tst_ts now, then, parent_then;
 static int parent_ns;
 
-static struct test_variants {
-	int (*func)(clockid_t clk_id, void *ts);
-	enum tst_ts_type type;
-	char *desc;
-} variants[] = {
-	{ .func = libc_clock_gettime, .type = TST_LIBC_TIMESPEC, .desc = "vDSO or syscall with libc spec"},
+static struct time64_variants variants[] = {
+	{ .clock_gettime = libc_clock_gettime, .ts_type = TST_LIBC_TIMESPEC, .desc = "vDSO or syscall with libc spec"},
 
 #if (__NR_clock_gettime != __LTP__NR_INVALID_SYSCALL)
-	{ .func = sys_clock_gettime, .type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
+	{ .clock_gettime = sys_clock_gettime, .ts_type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
 #endif
 
 #if (__NR_clock_gettime64 != __LTP__NR_INVALID_SYSCALL)
-	{ .func = sys_clock_gettime64, .type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
+	{ .clock_gettime = sys_clock_gettime64, .ts_type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
 #endif
 };
 
-static void child(struct test_variants *tv, struct tcase *tc)
+static void child(struct time64_variants *tv, struct tcase *tc)
 {
 	long long diff;
 
-	if (tv->func(tc->clk_id, tst_ts_get(&then))) {
+	if (tv->clock_gettime(tc->clk_id, tst_ts_get(&then))) {
 		tst_res(TFAIL | TERRNO, "clock_gettime(%s) failed",
 			tst_clock_name(tc->clk_id));
 		return;
@@ -68,7 +62,7 @@ static void child(struct test_variants *tv, struct tcase *tc)
 
 	SAFE_SETNS(parent_ns, CLONE_NEWTIME);
 
-	if (tv->func(tc->clk_id, tst_ts_get(&parent_then))) {
+	if (tv->clock_gettime(tc->clk_id, tst_ts_get(&parent_then))) {
 		tst_res(TFAIL | TERRNO, "clock_gettime(%s) failed",
 			tst_clock_name(tc->clk_id));
 		return;
@@ -76,7 +70,7 @@ static void child(struct test_variants *tv, struct tcase *tc)
 
 	diff = tst_ts_diff_ms(then, now);
 
-	if (diff/1000 != tc->off) {
+	if (diff - tc->off * 1000 > 10) {
 		tst_res(TFAIL, "Wrong offset (%s) read %llims",
 		        tst_clock_name(tc->clk_id), diff);
 	} else {
@@ -86,7 +80,7 @@ static void child(struct test_variants *tv, struct tcase *tc)
 
 	diff = tst_ts_diff_ms(parent_then, now);
 
-	if (diff/1000) {
+	if (diff > 10) {
 		tst_res(TFAIL, "Wrong offset (%s) read %llims",
 		        tst_clock_name(tc->clk_id), diff);
 	} else {
@@ -97,7 +91,7 @@ static void child(struct test_variants *tv, struct tcase *tc)
 
 static void verify_ns_clock(unsigned int n)
 {
-	struct test_variants *tv = &variants[tst_variant];
+	struct time64_variants *tv = &variants[tst_variant];
 	struct tcase *tc = &tcases[n];
 
 	SAFE_UNSHARE(CLONE_NEWTIME);
@@ -105,7 +99,7 @@ static void verify_ns_clock(unsigned int n)
 	SAFE_FILE_PRINTF("/proc/self/timens_offsets", "%d %d 0",
 	                 tc->clk_off, tc->off);
 
-	if (tv->func(tc->clk_id, tst_ts_get(&now))) {
+	if (tv->clock_gettime(tc->clk_id, tst_ts_get(&now))) {
 		tst_res(TFAIL | TERRNO, "%d clock_gettime(%s) failed",
 			__LINE__, tst_clock_name(tc->clk_id));
 		return;
@@ -117,9 +111,9 @@ static void verify_ns_clock(unsigned int n)
 
 static void setup(void)
 {
-	struct test_variants *tv = &variants[tst_variant];
+	struct time64_variants *tv = &variants[tst_variant];
 
-	now.type = then.type = parent_then.type = tv->type;
+	now.type = then.type = parent_then.type = tv->ts_type;
 	tst_res(TINFO, "Testing variant: %s", variants[tst_variant].desc);
 	parent_ns = SAFE_OPEN("/proc/self/ns/time_for_children", O_RDONLY);
 }

@@ -44,12 +44,12 @@
 #define BUFFER 40
 #define MAXMSG 5
 
-char gqname[NAMESIZE];
-mqd_t gqueue;
+static char gqname[NAMESIZE];
+static mqd_t gqueue;
 
-int sync_pipes[2];
+static int sync_pipes[2];
 
-int cleanup_for_exit(int gqueue, char *gqname, int ret)
+static int cleanup_for_exit(int gqueue, char *gqname, int ret)
 {
 	mq_close(gqueue);
 	mq_unlink(gqname);
@@ -68,7 +68,6 @@ int main(void)
 	char msgrcd[BUFFER];
 	const char *msgptr = MSGSTR;
 	struct mq_attr attr;
-	int unresolved = 0;
 	unsigned pri;
 
 	sprintf(gqname, "/mq_send_5-1_%d", getpid());
@@ -128,7 +127,7 @@ int main(void)
 		/* receive one message and allow child's mq_send to complete */
 		if (mq_receive(gqueue, msgrcd, BUFFER, &pri) == -1) {
 			perror("mq_receive() did not return success");
-			unresolved = 1;
+			return cleanup_for_exit(gqueue, gqname, PTS_UNRESOLVED);
 		}
 
 		/* child has 5 seconds to call mq_send() again and notify us */
