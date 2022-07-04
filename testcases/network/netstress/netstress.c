@@ -31,6 +31,13 @@
 #include "tst_test.h"
 #include "tst_safe_net.h"
 
+#if !defined(HAVE_RAND_R)
+static int rand_r(LTP_ATTRIBUTE_UNUSED unsigned int *seed)
+{
+    return rand();
+}
+#endif
+
 static const int max_msg_len = (1 << 16) - 1;
 static const int min_msg_len = 5;
 
@@ -62,6 +69,7 @@ static const int end_byte	= 0x0a;
 static int init_cln_msg_len	= 32;
 static int init_srv_msg_len	= 128;
 static int max_rand_msg_len;
+static int init_seed;
 
 /*
  * The number of requests from client after
@@ -344,10 +352,11 @@ union net_size_field {
 	uint16_t value;
 };
 
-static void make_client_request(char client_msg[], int *cln_len, int *srv_len)
+static void make_client_request(char client_msg[], int *cln_len, int *srv_len,
+				unsigned int *seed)
 {
 	if (max_rand_msg_len)
-		*cln_len = *srv_len = min_msg_len + rand() % max_rand_msg_len;
+		*cln_len = *srv_len = min_msg_len + rand_r(seed) % max_rand_msg_len;
 
 	memset(client_msg, client_byte, *cln_len);
 	client_msg[0] = start_byte;
@@ -362,7 +371,7 @@ static void make_client_request(char client_msg[], int *cln_len, int *srv_len)
 	client_msg[*cln_len - 1] = end_byte;
 }
 
-void *client_fn(LTP_ATTRIBUTE_UNUSED void *arg)
+void *client_fn(void *id)
 {
 	int cln_len = init_cln_msg_len,
 	    srv_len = init_srv_msg_len;
@@ -371,13 +380,14 @@ void *client_fn(LTP_ATTRIBUTE_UNUSED void *arg)
 	char client_msg[max_msg_len];
 	int i = 0;
 	intptr_t err = 0;
+	unsigned int seed = init_seed ^ (intptr_t)id;
 
 	inf.raddr_len = sizeof(inf.raddr);
 	inf.etime_cnt = 0;
 	inf.timeout = wait_timeout;
 	inf.pmtu_err_cnt = 0;
 
-	make_client_request(client_msg, &cln_len, &srv_len);
+	make_client_request(client_msg, &cln_len, &srv_len, &seed);
 
 	/* connect & send requests */
 	inf.fd = client_connect_send(client_msg, cln_len);
@@ -407,7 +417,7 @@ void *client_fn(LTP_ATTRIBUTE_UNUSED void *arg)
 		}
 
 		if (max_rand_msg_len)
-			make_client_request(client_msg, &cln_len, &srv_len);
+			make_client_request(client_msg, &cln_len, &srv_len, &seed);
 
 		SAFE_SEND(1, inf.fd, client_msg, cln_len, send_flags);
 
@@ -468,9 +478,9 @@ static void client_init(void)
 	family = remote_addrinfo->ai_family;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &tv_client_start);
-	int i;
+	intptr_t i;
 	for (i = 0; i < clients_num; ++i)
-		SAFE_PTHREAD_CREATE(&thread_ids[i], 0, client_fn, NULL);
+		SAFE_PTHREAD_CREATE(&thread_ids[i], &attr, client_fn, (void *)i);
 }
 
 static void client_run(void)
@@ -496,7 +506,7 @@ static void client_run(void)
 	int msg_len = min_msg_len;
 
 	max_rand_msg_len = 0;
-	make_client_request(client_msg, &msg_len, &msg_len);
+	make_client_request(client_msg, &msg_len, &msg_len, NULL);
 	/* ask server to terminate */
 	client_msg[0] = start_fin_byte;
 	int cfd = client_connect_send(client_msg, msg_len);
@@ -713,7 +723,7 @@ static void move_to_background(void)
 	close(STDOUT_FILENO);
 	close(STDERR_FILENO);
 
-	int fd = SAFE_OPEN(log_path, O_CREAT | O_TRUNC | O_RDONLY, 00444);
+	int fd = SAFE_OPEN(log_path, O_CREAT | O_TRUNC | O_WRONLY, 0644);
 
 	SAFE_DUP(fd);
 }
@@ -736,8 +746,6 @@ static void server_run(void)
 	/* IPv4 source address will be mapped to IPv6 address */
 	struct sockaddr_in6 addr6;
 	socklen_t addr_size = sizeof(addr6);
-
-	pthread_attr_init(&attr);
 
 	/*
 	 * detaching threads allow to reclaim thread's resources
@@ -861,10 +869,9 @@ static void setup(void)
 
 	if (max_rand_msg_len) {
 		max_rand_msg_len -= min_msg_len;
-		unsigned int seed = max_rand_msg_len ^ client_max_requests;
-
-		srand(seed);
-		tst_res(TINFO, "srand() seed 0x%x", seed);
+		init_seed = max_rand_msg_len ^ client_max_requests;
+		srand(init_seed); /* in case rand_r() is missing */
+		tst_res(TINFO, "rand start seed 0x%x", init_seed);
 	}
 
 	/* if client_num is not set, use num of processors */
@@ -971,6 +978,12 @@ static void setup(void)
 	break;
 	}
 
+	if ((errno = pthread_attr_init(&attr)))
+		tst_brk(TBROK | TERRNO, "pthread_attr_init failed");
+
+	if ((errno = pthread_attr_setstacksize(&attr, 256*1024)))
+		tst_brk(TBROK | TERRNO, "pthread_attr_setstacksize(256*1024) failed");
+
 	net.init();
 }
 
@@ -979,40 +992,36 @@ static void do_test(void)
 	net.run();
 }
 
-static struct tst_option options[] = {
-	{"f", &fastopen_api, "-f       Use TFO API, default is old API"},
-	{"F", &fastopen_sapi,
-		"-F       TCP_FASTOPEN_CONNECT socket option and standard API"},
-	{"t:", &targ, "-t x     Set tcp_fastopen value"},
-
-	{"S:", &source_addr, "-S x     Source address to bind"},
-	{"g:", &tcp_port, "-g x     x - server port"},
-	{"b:", &barg, "-b x     x - low latency busy poll timeout"},
-	{"T:", &type, "-T x     tcp (default), udp, udp_lite, dccp, sctp"},
-	{"z", &zcopy, "-z       enable SO_ZEROCOPY"},
-	{"P:", &reuse_port, "-P       enable SO_REUSEPORT"},
-	{"D:", &dev, "-D x     bind to device x\n"},
-
-	{"H:", &server_addr, "Client:\n-H x     Server name or IP address"},
-	{"l", &client_mode, "-l       Become client, default is server"},
-	{"a:", &aarg, "-a x     Number of clients running in parallel"},
-	{"r:", &rarg, "-r x     Number of client requests"},
-	{"n:", &narg, "-n x     Client message size"},
-	{"N:", &Narg, "-N x     Server message size"},
-	{"m:", &Targ, "-m x     Receive timeout in milliseconds (not used by UDP/DCCP client)"},
-	{"d:", &rpath, "-d x     x is a path to file where result is saved"},
-	{"A:", &Aarg, "-A x     x max payload length (generated randomly)\n"},
-
-	{"R:", &Rarg, "Server:\n-R x     x requests after which conn.closed"},
-	{"q:", &qarg, "-q x     x - TFO queue"},
-	{"B:", &server_bg, "-B x     run in background, x - process directory"},
-	{NULL, NULL, NULL}
-};
-
 static struct tst_test test = {
 	.test_all = do_test,
 	.forks_child = 1,
 	.setup = setup,
 	.cleanup = cleanup,
-	.options = options
+	.options = (struct tst_option[]) {
+		{"f", &fastopen_api, "Use TFO API, default is old API"},
+		{"F", &fastopen_sapi, "TCP_FASTOPEN_CONNECT socket option and standard API"},
+		{"t:", &targ, "Set tcp_fastopen value"},
+		{"S:", &source_addr, "Source address to bind"},
+		{"g:", &tcp_port, "Server port"},
+		{"b:", &barg, "Low latency busy poll timeout"},
+		{"T:", &type, "Tcp (default), udp, udp_lite, dccp, sctp"},
+		{"z", &zcopy, "Enable SO_ZEROCOPY"},
+		{"P:", &reuse_port, "Enable SO_REUSEPORT"},
+		{"D:", &dev, "Bind to device x"},
+
+		{"H:", &server_addr, "Server name or IP address"},
+		{"l", &client_mode, "Become client, default is server"},
+		{"a:", &aarg, "Number of clients running in parallel"},
+		{"r:", &rarg, "Number of client requests"},
+		{"n:", &narg, "Client message size"},
+		{"N:", &Narg, "Server message size"},
+		{"m:", &Targ, "Receive timeout in milliseconds (not used by UDP/DCCP client)"},
+		{"d:", &rpath, "Path to file where result is saved"},
+		{"A:", &Aarg, "Max payload length (generated randomly)"},
+
+		{"R:", &Rarg, "Server requests after which conn.closed"},
+		{"q:", &qarg, "TFO queue"},
+		{"B:", &server_bg, "Run in background, arg is the process directory"},
+		{}
+	},
 };

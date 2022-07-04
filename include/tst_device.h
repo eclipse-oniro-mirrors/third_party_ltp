@@ -7,10 +7,12 @@
 #define TST_DEVICE_H__
 
 #include <unistd.h>
+#include <stdint.h>
 
 struct tst_device {
 	const char *dev;
 	const char *fs_type;
+	uint64_t size;
 };
 
 /*
@@ -58,10 +60,29 @@ int tst_find_free_loopdev(const char *path, size_t path_len);
 int tst_attach_device(const char *dev_path, const char *file_path);
 
 /*
+ * Get size (in MB) of the given device
+ */
+uint64_t tst_get_device_size(const char *dev_path);
+
+/*
+ * Detaches a file from a loop device fd.
+ *
+ * @dev_path Path to the loop device e.g. /dev/loop0
+ * @dev_fd a open fd for the loop device
+ * @return Zero on succes, non-zero otherwise.
+ */
+int tst_detach_device_by_fd(const char *dev_path, int dev_fd);
+
+/*
  * Detaches a file from a loop device.
  *
  * @dev_path Path to the loop device e.g. /dev/loop0
  * @return Zero on succes, non-zero otherwise.
+ *
+ * Internally this function opens the device and calls
+ * tst_detach_device_by_fd(). If you keep device file descriptor open you
+ * have to call the by_fd() variant since having the device open twice will
+ * prevent it from being detached.
  */
 int tst_detach_device(const char *dev_path);
 
@@ -83,5 +104,12 @@ unsigned long tst_dev_bytes_written(const char *dev);
  * Wipe the contents of given directory but keep the directory itself
  */
 void tst_purge_dir(const char *path);
+
+/*
+ * Find the file or path belongs to which block dev
+ * @path  Path to find the backing dev
+ * @dev   The block dev
+ */
+void tst_find_backing_dev(const char *path, char *dev);
 
 #endif	/* TST_DEVICE_H__ */

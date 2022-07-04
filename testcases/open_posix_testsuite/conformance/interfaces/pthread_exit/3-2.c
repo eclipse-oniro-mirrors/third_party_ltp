@@ -90,11 +90,11 @@
 /***********************************    Real Test   *****************************************/
 /********************************************************************************************/
 
-int global = 0;
-int tab[4];
-pthread_key_t tld[3];
+static int global = 0;
+static int tab[4];
+static pthread_key_t tld[3];
 
-#define CLEANUP(n) void clnp##n(void * arg)\
+#define CLEANUP(n) static void clnp##n(void * arg PTS_ATTRIBUTE_UNUSED)\
 {\
 	tab[global]=n; \
 	global++; \
@@ -106,13 +106,13 @@ CLEANUP(1)
     CLEANUP(3)
 
 /* TLD destructor */
-void destructor(void *arg)
+static void destructor(void *arg)
 {
 	*(int *)arg += global;
 }
 
 /* Thread routine */
-void *threaded(void *arg LTP_ATTRIBUTE_UNUSED)
+static void *threaded(void *arg PTS_ATTRIBUTE_UNUSED)
 {
 	int ret = 0;
 
@@ -149,7 +149,8 @@ int main(void)
 	int ret = 0;
 	void *rval;
 	pthread_t child;
-	int i, j;
+	unsigned int i;
+	int j;
 
 	output_init();
 

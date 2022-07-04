@@ -23,7 +23,6 @@
 #include <sched.h>
 #include "tst_test.h"
 #include "tst_fuzzy_sync.h"
-#include "tst_taint.h"
 
 static volatile int fd = -1;
 static struct sockaddr_ll addr1, addr2;
@@ -35,7 +34,7 @@ static void setup(void)
 	int real_gid = getgid();
 	struct ifreq ifr;
 
-	tst_taint_init(TST_TAINT_W | TST_TAINT_D);
+	SAFE_TRY_FILE_PRINTF("/proc/sys/user/max_user_namespaces", "%d", 10);
 
 	SAFE_UNSHARE(CLONE_NEWUSER);
 	SAFE_UNSHARE(CLONE_NEWNET);
@@ -51,11 +50,20 @@ static void setup(void)
 	addr1.sll_family = AF_PACKET;
 	addr1.sll_ifindex = ifr.ifr_ifindex;
 	addr2.sll_family = AF_PACKET;
+
+	fzsync_pair.exec_loops = 10000;
+	tst_fzsync_pair_init(&fzsync_pair);
 }
 
-static void do_bind(void) {
-	bind(fd, (struct sockaddr *)&addr1, sizeof(addr1));
-	bind(fd, (struct sockaddr *)&addr2, sizeof(addr2));
+static void cleanup(void)
+{
+	tst_fzsync_pair_cleanup(&fzsync_pair);
+}
+
+static void do_bind(void)
+{
+	SAFE_BIND(fd, (struct sockaddr *)&addr1, sizeof(addr1));
+	SAFE_BIND(fd, (struct sockaddr *)&addr2, sizeof(addr2));
 }
 
 static void *thread_run(void *arg)
@@ -69,12 +77,10 @@ static void *thread_run(void *arg)
 	return arg;
 }
 
-static void child_run(void)
+static void run(void)
 {
 	struct ifreq ifr;
 
-	fzsync_pair.exec_loops = 10000;
-	tst_fzsync_pair_init(&fzsync_pair);
 	tst_fzsync_pair_reset(&fzsync_pair, thread_run);
 	strcpy(ifr.ifr_name, "lo");
 
@@ -87,43 +93,25 @@ static void child_run(void)
 		ioctl(fd, SIOCSIFFLAGS, &ifr);
 		tst_fzsync_end_race_a(&fzsync_pair);
 		SAFE_CLOSE(fd);
-
 	}
 
-	tst_fzsync_pair_cleanup(&fzsync_pair);
-}
-
-static void run(void)
-{
-	pid_t child;
-
-	/* The kernel crash is triggered on process exit. */
-	child = SAFE_FORK();
-
-	if (!child) {
-		child_run();
-		exit(0);
-	}
-
-	SAFE_WAITPID(child, NULL, 0);
-
-	if (tst_taint_check()) {
-		tst_res(TFAIL, "Kernel is vulnerable");
-		return;
-	}
-
-	tst_res(TPASS, "Nothing bad happened, probably");
+	tst_res(TPASS, "Nothing bad happened (yet)");
 }
 
 static struct tst_test test = {
 	.test_all = run,
 	.setup = setup,
+	.cleanup = cleanup,
 	.timeout = 600,
-	.forks_child = 1,
+	.taint_check = TST_TAINT_W | TST_TAINT_D,
 	.needs_kconfigs = (const char *[]) {
 		"CONFIG_USER_NS=y",
 		"CONFIG_NET_NS=y",
 		NULL
+	},
+	.save_restore = (const char * const[]) {
+		"?/proc/sys/user/max_user_namespaces",
+		NULL,
 	},
 	.tags = (const struct tst_tag[]) {
 		{"linux-git", "15fe076edea7"},

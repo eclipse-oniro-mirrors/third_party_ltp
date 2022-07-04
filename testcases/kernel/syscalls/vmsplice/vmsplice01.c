@@ -11,7 +11,6 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/types.h>
-#include <fcntl.h>
 #include <sys/poll.h>
 
 #include "tst_test.h"
@@ -103,11 +102,6 @@ static void setup(void)
 {
 	int i;
 
-	if (tst_fs_type(".") == TST_NFS_MAGIC) {
-		tst_brk(TCONF, "Cannot do splice() "
-			 "on a file located on an NFS filesystem");
-	}
-
 	for (i = 0; i < TEST_BLOCK_SIZE; i++)
 		buffer[i] = i & 0xff;
 }
@@ -123,5 +117,9 @@ static struct tst_test test = {
 	.cleanup = cleanup,
 	.test_all = vmsplice_test,
 	.needs_tmpdir = 1,
+	.skip_filesystems = (const char *const []) {
+		"nfs",
+		NULL
+	},
 	.min_kver = "2.6.17",
 };

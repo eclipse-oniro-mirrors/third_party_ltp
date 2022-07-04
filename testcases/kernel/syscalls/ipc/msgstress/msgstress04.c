@@ -38,7 +38,7 @@
 #include <unistd.h>
 #include "test.h"
 #include "ipcmsg.h"
-#include "../lib/libmsgctl.h"
+#include "libmsgctl.h"
 
 char *TCID = "msgstress04";
 int TST_TOTAL = 1;
@@ -413,12 +413,6 @@ void setup(void)
 	tst_resm(TINFO, "Found %d available message queues", MSGMNI);
 
 	free_pids = tst_get_free_pids(cleanup);
-	if (free_pids < 0) {
-		tst_brkm(TBROK, cleanup, "Can't obtain free_pid count");
-	} else if (!free_pids) {
-		tst_brkm(TBROK, cleanup, "No free pids");
-	}
-
 	/* We don't use more than a half of available pids.
 	 * For each child we fork up to 2*maxnkids grandchildren. */
 	maxnprocs = (free_pids / 2) / (1 + 2 * maxnkids);

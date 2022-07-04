@@ -12,6 +12,14 @@ unsigned long tst_hugepages;
 char *nr_opt;
 char *Hopt;
 
+size_t tst_get_hugepage_size(void)
+{
+	if (access(PATH_HUGEPAGES, F_OK))
+		return 0;
+
+	return SAFE_READ_MEMINFO("Hugepagesize:") * 1024;
+}
+
 unsigned long tst_request_hugepages(unsigned long hpages)
 {
 	unsigned long val, max_hpages;
@@ -26,6 +34,11 @@ unsigned long tst_request_hugepages(unsigned long hpages)
 	else
 		tst_hugepages = hpages;
 
+	if (hpages == TST_NO_HUGEPAGES) {
+		tst_hugepages = 0;
+		goto set_hugepages;
+	}
+
 	SAFE_FILE_PRINTF("/proc/sys/vm/drop_caches", "3");
 	max_hpages = SAFE_READ_MEMINFO("MemFree:") / SAFE_READ_MEMINFO("Hugepagesize:");
 
@@ -39,11 +52,14 @@ unsigned long tst_request_hugepages(unsigned long hpages)
 			goto out;
 	}
 
+set_hugepages:
 	tst_sys_conf_save("?/proc/sys/vm/nr_hugepages");
 	SAFE_FILE_PRINTF(PATH_NR_HPAGES, "%lu", tst_hugepages);
 	SAFE_FILE_SCANF(PATH_NR_HPAGES, "%lu", &val);
 	if (val != tst_hugepages)
-		tst_brk(TBROK, "nr_hugepages = %lu, but expect %lu", val, tst_hugepages);
+		tst_brk(TCONF, "nr_hugepages = %lu, but expect %lu. "
+				"Not enough hugepages for testing.",
+				val, tst_hugepages);
 
 	tst_res(TINFO, "%lu hugepage(s) reserved", tst_hugepages);
 out:

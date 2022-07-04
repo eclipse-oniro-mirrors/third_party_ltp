@@ -48,7 +48,7 @@
 
 include $(top_srcdir)/include/mk/functions.mk
 
-RECURSIVE_TARGETS		?= all install
+RECURSIVE_TARGETS		?= all install check
 
 $(eval $(get_make_dirs))
 
@@ -68,6 +68,9 @@ $(INSTALL_FILES): | $(INSTALL_DEPS)
 
 trunk-install: $(INSTALL_FILES)
 
+$(CHECK_TARGETS): | $(CHECK_DEPS)
+trunk-check: $(CHECK_TARGETS) $(SHELL_CHECK_TARGETS)
+
 # Avoid creating duplicate .PHONY references to all, clean, and install. IIRC,
 # I've seen some indeterministic behavior when one does this in the past with
 # GNU Make...
@@ -75,9 +78,16 @@ trunk-install: $(INSTALL_FILES)
 all: trunk-all
 
 clean:: trunk-clean
+ifdef VERBOSE
 	@set -e; for dir in $(SUBDIRS); do \
 	    $(MAKE) -C "$$dir" -f "$(abs_srcdir)/$$dir/Makefile" $@; \
 	done
+else
+	@set -e; for dir in $(SUBDIRS); do \
+	    echo "DIR $$dir"; \
+	    $(MAKE) --no-print-directory -C "$$dir" -f "$(abs_srcdir)/$$dir/Makefile" $@; \
+	done
+endif
 ifneq ($(abs_builddir),$(abs_srcdir))
 	$(RM) -Rf $(SUBDIRS)
 endif
@@ -90,9 +100,17 @@ ifeq ($(strip $(SUBDIRS)),)
 	$(error SUBDIRS empty -- did you want generic_leaf_target instead?)
 else
 $(RECURSIVE_TARGETS): %: | $(SUBDIRS)
+ifdef VERBOSE
 	@set -e; for dir in $(SUBDIRS); do \
 	    $(MAKE) -C $$dir -f "$(abs_srcdir)/$$dir/Makefile" $@; \
 	done
+else
+	@set -e; for dir in $(SUBDIRS); do \
+	    $(MAKE) --no-print-directory -C $$dir -f "$(abs_srcdir)/$$dir/Makefile" $@; \
+	done
 endif
+endif
+
+check: trunk-check
 
 # vim: syntax=make

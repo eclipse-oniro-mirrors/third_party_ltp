@@ -31,15 +31,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include "posixtest.h"
 
-#define NAMESIZE 50
+#include "posixtest.h"
+#include "tempfile.h"
+
 #define TNAME "mq_open/16-1.c"
 
 int main(void)
 {
-	char qname[NAMESIZE];
-	char fname[NAMESIZE];
+	char qname[NAME_MAX];
+	char fname[PATH_MAX];
 	int pid, succeeded = 0;
 	int fd;
 	void *pa = NULL;
@@ -53,16 +54,20 @@ int main(void)
 
 	sprintf(qname, "/mq_open_16-1_%d", getpid());
 
-	sprintf(fname, "/tmp/pts_mq_open_16_1_%d", getpid());
+	PTS_GET_TMP_FILENAME(fname, "pts_mq_open_16_1");
 	unlink(fname);
 	fd = open(fname, O_CREAT | O_RDWR | O_EXCL, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
 		printf(TNAME " Error at open(): %s\n", strerror(errno));
 		return PTS_UNRESOLVED;
 	}
-	/* file is empty now, will cause "Bus error" */
-	write(fd, fname, sizeof(int));
 	unlink(fname);
+
+	if (ftruncate(fd, sizeof(int))) {
+		perror("ftruncate");
+		close(fd);
+		return PTS_UNRESOLVED;
+	}
 
 	pa = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	if (pa == MAP_FAILED) {

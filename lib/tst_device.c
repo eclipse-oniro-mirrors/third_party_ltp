@@ -31,6 +31,7 @@
 #include <linux/loop.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <sys/sysmacros.h>
 #include "lapi/syscalls.h"
 #include "test.h"
 #include "safe_macros.h"
@@ -186,9 +187,78 @@ int tst_attach_device(const char *dev, const char *file)
 	return 0;
 }
 
+uint64_t tst_get_device_size(const char *dev_path)
+{
+	int fd;
+	uint64_t size;
+	struct stat st;
+
+	if (!dev_path)
+		tst_brkm(TBROK, NULL, "No block device path");
+
+	if (stat(dev_path, &st)) {
+		tst_resm(TWARN | TERRNO, "stat() failed");
+		return -1;
+	}
+
+	if (!S_ISBLK(st.st_mode)) {
+		tst_resm(TWARN, "%s is not a block device", dev_path);
+		return -1;
+	}
+
+	fd = open(dev_path, O_RDONLY);
+	if (fd < 0) {
+		tst_resm(TWARN | TERRNO,
+				"open(%s, O_RDONLY) failed", dev_path);
+		return -1;
+	}
+
+	if (ioctl(fd, BLKGETSIZE64, &size)) {
+		tst_resm(TWARN | TERRNO,
+				"ioctl(fd, BLKGETSIZE64, ...) failed");
+		close(fd);
+		return -1;
+	}
+
+	if (close(fd)) {
+		tst_resm(TWARN | TERRNO,
+				"close(fd) failed");
+		return -1;
+	}
+
+	return size/1024/1024;
+}
+
+int tst_detach_device_by_fd(const char *dev, int dev_fd)
+{
+	int ret, i;
+
+	/* keep trying to clear LOOPDEV until we get ENXIO, a quick succession
+	 * of attach/detach might not give udev enough time to complete */
+	for (i = 0; i < 40; i++) {
+		ret = ioctl(dev_fd, LOOP_CLR_FD, 0);
+
+		if (ret && (errno == ENXIO))
+			return 0;
+
+		if (ret && (errno != EBUSY)) {
+			tst_resm(TWARN,
+				 "ioctl(%s, LOOP_CLR_FD, 0) unexpectedly failed with: %s",
+				 dev, tst_strerrno(errno));
+			return 1;
+		}
+
+		usleep(50000);
+	}
+
+	tst_resm(TWARN,
+		"ioctl(%s, LOOP_CLR_FD, 0) no ENXIO for too long", dev);
+	return 1;
+}
+
 int tst_detach_device(const char *dev)
 {
-	int dev_fd, ret, i;
+	int dev_fd, ret;
 
 	dev_fd = open(dev, O_RDONLY);
 	if (dev_fd < 0) {
@@ -196,31 +266,9 @@ int tst_detach_device(const char *dev)
 		return 1;
 	}
 
-	/* keep trying to clear LOOPDEV until we get ENXIO, a quick succession
-	 * of attach/detach might not give udev enough time to complete */
-	for (i = 0; i < 40; i++) {
-		ret = ioctl(dev_fd, LOOP_CLR_FD, 0);
-
-		if (ret && (errno == ENXIO)) {
-			close(dev_fd);
-			return 0;
-		}
-
-		if (ret && (errno != EBUSY)) {
-			tst_resm(TWARN,
-				 "ioctl(%s, LOOP_CLR_FD, 0) unexpectedly failed with: %s",
-				 dev, tst_strerrno(errno));
-			close(dev_fd);
-			return 1;
-		}
-
-		usleep(50000);
-	}
-
+	ret = tst_detach_device_by_fd(dev, dev_fd);
 	close(dev_fd);
-	tst_resm(TWARN,
-		"ioctl(%s, LOOP_CLR_FD, 0) no ENXIO for too long", dev);
-	return 1;
+	return ret;
 }
 
 int tst_dev_sync(int fd)
@@ -230,9 +278,9 @@ int tst_dev_sync(int fd)
 
 const char *tst_acquire_loop_device(unsigned int size, const char *filename)
 {
-	unsigned int acq_dev_size = MAX(size, DEV_SIZE_MB);
+	unsigned int acq_dev_size = size ? size : DEV_SIZE_MB;
 
-	if (tst_fill_file(filename, 0, 1024 * 1024, acq_dev_size)) {
+	if (tst_prealloc_file(filename, 1024 * 1024, acq_dev_size)) {
 		tst_resm(TWARN | TERRNO, "Failed to create %s", filename);
 		return NULL;
 	}
@@ -248,50 +296,18 @@ const char *tst_acquire_loop_device(unsigned int size, const char *filename)
 
 const char *tst_acquire_device__(unsigned int size)
 {
-	int fd;
 	const char *dev;
-	struct stat st;
 	unsigned int acq_dev_size;
 	uint64_t ltp_dev_size;
 
-	acq_dev_size = MAX(size, DEV_SIZE_MB);
+	acq_dev_size = size ? size : DEV_SIZE_MB;
 
 	dev = getenv("LTP_DEV");
 
 	if (dev) {
 		tst_resm(TINFO, "Using test device LTP_DEV='%s'", dev);
 
-		if (stat(dev, &st)) {
-			tst_resm(TWARN | TERRNO, "stat() failed");
-			return NULL;
-		}
-
-		if (!S_ISBLK(st.st_mode)) {
-			tst_resm(TWARN, "%s is not a block device", dev);
-			return NULL;
-		}
-
-		fd = open(dev, O_RDONLY);
-		if (fd < 0) {
-			tst_resm(TWARN | TERRNO,
-				 "open(%s, O_RDONLY) failed", dev);
-			return NULL;
-		}
-
-		if (ioctl(fd, BLKGETSIZE64, &ltp_dev_size)) {
-			tst_resm(TWARN | TERRNO,
-				 "ioctl(fd, BLKGETSIZE64, ...) failed");
-			close(fd);
-			return NULL;
-		}
-
-		if (close(fd)) {
-			tst_resm(TWARN | TERRNO,
-				 "close(fd) failed");
-			return NULL;
-		}
-
-		ltp_dev_size = ltp_dev_size/1024/1024;
+		ltp_dev_size = tst_get_device_size(dev);
 
 		if (acq_dev_size <= ltp_dev_size)
 			return dev;
@@ -487,4 +503,47 @@ unsigned long tst_dev_bytes_written(const char *dev)
 	prev_dev_sec_write = dev_sec_write;
 
 	return dev_bytes_written;
+}
+
+void tst_find_backing_dev(const char *path, char *dev)
+{
+	struct stat buf;
+	FILE *file;
+	char line[PATH_MAX];
+	char *pre = NULL;
+	char *next = NULL;
+	unsigned int dev_major, dev_minor, line_mjr, line_mnr;
+
+	if (stat(path, &buf) < 0)
+		tst_brkm(TWARN | TERRNO, NULL, "stat() failed");
+
+	dev_major = major(buf.st_dev);
+	dev_minor = minor(buf.st_dev);
+	file = SAFE_FOPEN(NULL, "/proc/self/mountinfo", "r");
+	*dev = '\0';
+
+	while (fgets(line, sizeof(line), file)) {
+		if (sscanf(line, "%*d %*d %d:%d", &line_mjr, &line_mnr) != 2)
+			continue;
+
+		if (line_mjr == dev_major && line_mnr == dev_minor) {
+			pre = strstr(line, " - ");
+			pre = strtok_r(pre, " ", &next);
+			pre = strtok_r(NULL, " ", &next);
+			pre = strtok_r(NULL, " ", &next);
+			strcpy(dev, pre);
+			break;
+		}
+	}
+
+	SAFE_FCLOSE(NULL, file);
+
+	if (!*dev)
+		tst_brkm(TBROK, NULL, "Cannot find block device for %s", path);
+
+	if (stat(dev, &buf) < 0)
+		tst_brkm(TWARN | TERRNO, NULL, "stat(%s) failed", dev);
+
+	if (S_ISBLK(buf.st_mode) != 1)
+		tst_brkm(TCONF, NULL, "dev(%s) isn't a block dev", dev);
 }

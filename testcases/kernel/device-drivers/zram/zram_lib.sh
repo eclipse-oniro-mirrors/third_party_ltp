@@ -1,48 +1,98 @@
 #!/bin/sh
 # Copyright (c) 2015 Oracle and/or its affiliates. All Rights Reserved.
-# Copyright (c) 2019 Petr Vorel <pvorel@suse.cz>
+# Copyright (c) 2019-2021 Petr Vorel <pvorel@suse.cz>
 # Author: Alexey Kodanev <alexey.kodanev@oracle.com>
 
 dev_makeswap=-1
 dev_mounted=-1
+dev_start=0
+dev_end=-1
+module_load=-1
+sys_control=-1
 
 TST_NEEDS_TMPDIR=1
+TST_NEEDS_ROOT=1
 TST_SETUP="zram_load"
 TST_CLEANUP="zram_cleanup"
+TST_NEEDS_DRIVERS="zram"
 . tst_test.sh
 
 zram_cleanup()
 {
 	local i
 
-	for i in $(seq 0 $dev_makeswap); do
+	for i in $(seq $dev_start $dev_makeswap); do
 		swapoff /dev/zram$i
 	done
 
-	for i in $(seq 0 $dev_mounted); do
+	for i in $(seq $dev_start $dev_mounted); do
 		umount /dev/zram$i
 	done
 
-	for i in $(seq 0 $(($dev_num - 1))); do
+	for i in $(seq $dev_start $dev_end); do
 		echo 1 > /sys/block/zram${i}/reset
 	done
 
-	rmmod zram > /dev/null 2>&1
+	if [ $sys_control -eq 1 ]; then
+		for i in $(seq $dev_start $dev_end); do
+			echo $i > /sys/class/zram-control/hot_remove
+		done
+	fi
+
+	if [ $module_load -eq 1 ]; then
+		rmmod zram > /dev/null 2>&1
+	fi
 }
 
 zram_load()
 {
-	tst_res TINFO "create '$dev_num' zram device(s)"
-	modprobe zram num_devices=$dev_num || \
-		tst_brk TBROK "failed to insert zram module"
+	local tmp
 
-	dev_num_created=$(ls /dev/zram* | wc -w)
-
-	if [ "$dev_num_created" -ne "$dev_num" ]; then
-		tst_brk TFAIL "unexpected num of devices: $dev_num_created"
-	else
-		tst_res TPASS "test succeeded"
+	if [ -z "$dev_num" ]; then
+		dev_num=0
+		for tmp in $zram_max_streams; do
+			dev_num=$((dev_num+1))
+		done
 	fi
+
+	if [ $dev_num -le 0 ]; then
+		tst_brk TBROK "dev_num must be > 0"
+	fi
+
+	tst_set_timeout $((dev_num*450))
+
+	tst_res TINFO "create '$dev_num' zram device(s)"
+
+	# zram module loaded, new kernel
+	if [ -d "/sys/class/zram-control" ]; then
+		tst_res TINFO "zram module already loaded, kernel supports zram-control interface"
+		dev_start=$(ls /dev/zram* | wc -w)
+		dev_end=$(($dev_start + $dev_num - 1))
+		sys_control=1
+
+		for i in $(seq  $dev_start $dev_end); do
+			cat /sys/class/zram-control/hot_add > /dev/null
+		done
+
+		tst_res TPASS "all zram devices (/dev/zram$dev_start~$dev_end) successfully created"
+		return
+	fi
+
+	# detect old kernel or built-in
+	modprobe zram num_devices=$dev_num
+	if [ ! -d "/sys/class/zram-control" ]; then
+		if grep -q '^zram' /proc/modules; then
+			rmmod zram > /dev/null 2>&1 || \
+				tst_brk TCONF "zram module is being used on old kernel without zram-control interface"
+		else
+			tst_brk TCONF "test needs CONFIG_ZRAM=m on old kernel without zram-control interface"
+		fi
+		modprobe zram num_devices=$dev_num
+	fi
+
+	module_load=1
+	dev_end=$(($dev_num - 1))
+	tst_res TPASS "all zram devices (/dev/zram0~$dev_end) successfully created"
 }
 
 zram_max_streams()
@@ -55,7 +105,7 @@ zram_max_streams()
 
 	tst_res TINFO "set max_comp_streams to zram device(s)"
 
-	local i=0
+	local i=$dev_start
 
 	for max_s in $zram_max_streams; do
 		local sys_path="/sys/block/zram${i}/max_comp_streams"
@@ -67,7 +117,7 @@ zram_max_streams()
 			tst_brk TFAIL "can't set max_streams '$max_s', get $max_stream"
 
 		i=$(($i + 1))
-		tst_res TINFO "$sys_path = '$max_streams' ($i/$dev_num)"
+		tst_res TINFO "$sys_path = '$max_streams'"
 	done
 
 	tst_res TPASS "test succeeded"
@@ -82,20 +132,18 @@ zram_compress_alg()
 		return
 	fi
 
-	local i=0
+	local i=$dev_start
 
 	tst_res TINFO "test that we can set compression algorithm"
-	local algs="$(sed 's/[][]//g' /sys/block/zram0/comp_algorithm)"
+	local algs="$(sed 's/[][]//g' /sys/block/zram${i}/comp_algorithm)"
 	tst_res TINFO "supported algs: $algs"
 
-	local dev_max=$(($dev_num - 1))
-
-	for i in $(seq 0 $dev_max); do
+	for i in $(seq $dev_start $dev_end); do
 		for alg in $algs; do
 			local sys_path="/sys/block/zram${i}/comp_algorithm"
 			echo "$alg" >  $sys_path || \
 				tst_brk TFAIL "can't set '$alg' to $sys_path"
-			tst_res TINFO "$sys_path = '$alg' ($i/$dev_max)"
+			tst_res TINFO "$sys_path = '$alg'"
 		done
 	done
 
@@ -104,7 +152,7 @@ zram_compress_alg()
 
 zram_set_disksizes()
 {
-	local i=0
+	local i=$dev_start
 	local ds
 
 	tst_res TINFO "set disk size to zram device(s)"
@@ -114,7 +162,7 @@ zram_set_disksizes()
 			tst_brk TFAIL "can't set '$ds' to $sys_path"
 
 		i=$(($i + 1))
-		tst_res TINFO "$sys_path = '$ds' ($i/$dev_num)"
+		tst_res TINFO "$sys_path = '$ds'"
 	done
 
 	tst_res TPASS "test succeeded"
@@ -129,7 +177,7 @@ zram_set_memlimit()
 		return
 	fi
 
-	local i=0
+	local i=$dev_start
 	local ds
 
 	tst_res TINFO "set memory limit to zram device(s)"
@@ -140,76 +188,8 @@ zram_set_memlimit()
 			tst_brk TFAIL "can't set '$ds' to $sys_path"
 
 		i=$(($i + 1))
-		tst_res TINFO "$sys_path = '$ds' ($i/$dev_num)"
+		tst_res TINFO "$sys_path = '$ds'"
 	done
 
 	tst_res TPASS "test succeeded"
 }
-
-zram_makeswap()
-{
-	tst_res TINFO "make swap with zram device(s)"
-	tst_require_cmds mkswap swapon swapoff
-	local i=0
-
-	for i in $(seq 0 $(($dev_num - 1))); do
-		ROD mkswap /dev/zram$i
-		ROD swapon /dev/zram$i
-		tst_res TINFO "done with /dev/zram$i"
-		dev_makeswap=$i
-	done
-
-	tst_res TPASS "making zram swap succeeded"
-}
-
-zram_swapoff()
-{
-	tst_require_cmds swapoff
-	local i
-
-	for i in $(seq 0 $dev_makeswap); do
-		ROD swapoff /dev/zram$i
-	done
-	dev_makeswap=-1
-
-	tst_res TPASS "swapoff completed"
-}
-
-zram_makefs()
-{
-	tst_require_cmds mkfs
-	local i=0
-
-	for fs in $zram_filesystems; do
-		# if requested fs not supported default it to ext2
-		tst_supported_fs $fs 2> /dev/null || fs=ext2
-
-		tst_res TINFO "make $fs filesystem on /dev/zram$i"
-		mkfs.$fs /dev/zram$i > err.log 2>&1
-		if [ $? -ne 0 ]; then
-			cat err.log
-			tst_brk TFAIL "failed to make $fs on /dev/zram$i"
-		fi
-
-		i=$(($i + 1))
-	done
-
-	tst_res TPASS "zram_makefs succeeded"
-}
-
-zram_mount()
-{
-	local i=0
-
-	for i in $(seq 0 $(($dev_num - 1))); do
-		tst_res TINFO "mount /dev/zram$i"
-		mkdir zram$i
-		ROD mount /dev/zram$i zram$i
-		dev_mounted=$i
-	done
-
-	tst_res TPASS "mount of zram device(s) succeeded"
-}
-
-modinfo zram > /dev/null 2>&1 ||
-	tst_brk TCONF "zram not configured in kernel"

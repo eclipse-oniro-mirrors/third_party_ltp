@@ -21,18 +21,36 @@
 #include <pthread.h>
 #include <errno.h>
 
+#define SALSA20_IV_SIZE       8
+#define SALSA20_MIN_KEY_SIZE  16
+static int volatile completed;
+
 static void *verify_encrypt(void *arg)
 {
+	const uint8_t iv[SALSA20_IV_SIZE] = { 0 };
+	const struct tst_alg_sendmsg_params params = {
+		.encrypt = true,
+		.iv = iv,
+		.ivlen = SALSA20_IV_SIZE,
+	};
 	char buf[16];
-	int reqfd = tst_alg_setup_reqfd("skcipher", "salsa20", NULL, 16);
+	int reqfd = tst_alg_setup_reqfd("skcipher", "salsa20", NULL,
+					SALSA20_MIN_KEY_SIZE);
 
+	/* Send a zero-length message to encrypt */
+	tst_alg_sendmsg(reqfd, NULL, 0, &params);
+
+	/*
+	 * Read the zero-length encrypted data.
+	 * With the bug, the kernel crashed here.
+	 */
 	TST_CHECKPOINT_WAKE(0);
-
-	/* With the bug the kernel crashed here */
 	if (read(reqfd, buf, 16) == 0)
 		tst_res(TPASS, "Successfully \"encrypted\" an empty message");
 	else
 		tst_res(TFAIL, "read() didn't return 0");
+
+	completed = 1;
 	return arg;
 }
 
@@ -40,12 +58,13 @@ static void run(void)
 {
 	pthread_t thr;
 
+	completed = 0;
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	SAFE_PTHREAD_CREATE(&thr, NULL, verify_encrypt, NULL);
 
 	TST_CHECKPOINT_WAIT(0);
 
-	while (pthread_kill(thr, 0) != ESRCH) {
+	while (!completed) {
 		if (tst_timeout_remaining() <= 10) {
 			pthread_cancel(thr);
 			tst_brk(TBROK,
@@ -53,6 +72,7 @@ static void run(void)
 		}
 		usleep(1000);
 	}
+	pthread_join(thr, NULL);
 }
 
 static struct tst_test test = {

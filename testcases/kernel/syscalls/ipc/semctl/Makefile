@@ -3,6 +3,11 @@
 
 top_srcdir              ?= ../../../../..
 
+LTPLIBS = ltpipc ltpnewipc
+
 include $(top_srcdir)/include/mk/testcases.mk
-include $(abs_srcdir)/../Makefile.inc
+
+semctl06: LTPLDLIBS = -lltpipc
+semctl02 semctl03 semctl04 semctl05 semctl07 semctl08 semctl09: LTPLDLIBS = -lltpnewipc
+
 include $(top_srcdir)/include/mk/generic_leaf_target.mk

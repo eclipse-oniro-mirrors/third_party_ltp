@@ -76,6 +76,7 @@
 /***********************************    Test cases  *****************************************/
 /********************************************************************************************/
 
+/* main is defined in the next file */
 #define STD_MAIN
 #include "../testfrmw/threads_scenarii.c"
 
@@ -90,7 +91,7 @@
 /***********************************    Real Test   *****************************************/
 /********************************************************************************************/
 
-void *teststack(void *arg)
+static void *teststack(void *arg)
 {
 	int ret = 0;
 	*(int **)arg = &ret;
@@ -98,7 +99,7 @@ void *teststack(void *arg)
 }
 
 /* Thread function */
-void *threaded(void *arg)
+static void *threaded(void *arg)
 {
 	int ret;
 	int *child_stack;

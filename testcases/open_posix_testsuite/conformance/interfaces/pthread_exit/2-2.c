@@ -89,10 +89,10 @@
 /***********************************    Real Test   *****************************************/
 /********************************************************************************************/
 
-int global = 0;
-int tab[3];
+static int global = 0;
+static int tab[3];
 
-#define CLEANUP(n) void clnp##n(void * arg)\
+#define CLEANUP(n) static void clnp##n(void * arg PTS_ATTRIBUTE_UNUSED)\
 {\
 	tab[global]=n; \
 	global++; \
@@ -102,7 +102,7 @@ CLEANUP(1)
     CLEANUP(2)
     CLEANUP(3)
 
-void *threaded(void *arg LTP_ATTRIBUTE_UNUSED)
+static void *threaded(void *arg PTS_ATTRIBUTE_UNUSED)
 {
 	pthread_cleanup_push(clnp3, NULL);
 	pthread_cleanup_push(clnp2, NULL);
@@ -123,7 +123,8 @@ int main(void)
 	int ret = 0;
 	void *rval;
 	pthread_t child;
-	int i, j;
+	unsigned int i;
+	int j;
 
 	output_init();
 
