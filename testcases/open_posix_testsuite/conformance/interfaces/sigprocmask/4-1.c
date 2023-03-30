@@ -59,7 +59,7 @@ int main(void)
 		return PTS_UNRESOLVED;
 	}
 
-	if ((raise(SIGABRT) == -1) | (raise(SIGUSR2) == -1)) {
+	if ((raise(SIGABRT) == -1) || (raise(SIGUSR2) == -1)) {
 		perror("Unexpected error while attempting to setup test "
 		       "pre-conditions");
 		return PTS_UNRESOLVED;
@@ -76,7 +76,7 @@ int main(void)
 	}
 
 	if ((sigismember(&pending_set, SIGABRT) !=
-	     1) | (sigismember(&pending_set, SIGUSR2) != 1)) {
+	     1) || (sigismember(&pending_set, SIGUSR2) != 1)) {
 		perror("FAIL: sigismember did not return 1\n");
 		return PTS_UNRESOLVED;
 	}
