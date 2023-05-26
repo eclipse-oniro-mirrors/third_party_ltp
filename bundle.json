@@ -12,7 +12,7 @@
     "licensePath": "COPYING",
     "component": {
         "name": "ltp",
-        "subsystem": "xts",
+        "subsystem": "thirdparty",
         "syscap": [],
         "features": [],
         "adapted_system_type": [],
