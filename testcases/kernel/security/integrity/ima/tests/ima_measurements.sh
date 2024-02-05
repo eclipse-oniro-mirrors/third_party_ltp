@@ -9,9 +9,6 @@
 TST_NEEDS_CMDS="awk cut sed"
 TST_SETUP="setup"
 TST_CNT=3
-TST_NEEDS_DEVICE=1
-
-. ima_setup.sh
 
 setup()
 {
@@ -93,4 +90,5 @@ test3()
 	EXPECT_FAIL "grep $file $ASCII_MEASUREMENTS"
 }
 
+. ima_setup.sh
 tst_run

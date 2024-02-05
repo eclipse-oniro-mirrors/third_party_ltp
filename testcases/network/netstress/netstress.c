@@ -384,6 +384,7 @@ void *client_fn(void *id)
 
 	inf.raddr_len = sizeof(inf.raddr);
 	inf.etime_cnt = 0;
+	inf.eshutdown_cnt = 0;
 	inf.timeout = wait_timeout;
 	inf.pmtu_err_cnt = 0;
 
@@ -713,10 +714,14 @@ static void server_cleanup(void)
 
 static void move_to_background(void)
 {
-	if (SAFE_FORK())
+	if (SAFE_FORK()) {
+		TST_CHECKPOINT_WAIT(0);
 		exit(0);
+	}
 
 	SAFE_SETSID();
+
+	TST_CHECKPOINT_WAKE(0);
 
 	close(STDIN_FILENO);
 	SAFE_OPEN("/dev/null", O_RDONLY);
@@ -878,9 +883,6 @@ static void setup(void)
 	if (!clients_num)
 		clients_num = sysconf(_SC_NPROCESSORS_ONLN);
 
-	if (tfo_value > 0 && tst_kvercmp(3, 7, 0) < 0)
-		tst_brk(TCONF, "Test must be run with kernel 3.7 or newer");
-
 	if (busy_poll >= 0 && tst_kvercmp(3, 11, 0) < 0)
 		tst_brk(TCONF, "Test must be run with kernel 3.11 or newer");
 
@@ -1024,4 +1026,6 @@ static struct tst_test test = {
 		{"B:", &server_bg, "Run in background, arg is the process directory"},
 		{}
 	},
+	.max_runtime = 300,
+	.needs_checkpoints = 1,
 };
