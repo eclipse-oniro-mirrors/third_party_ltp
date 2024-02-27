@@ -28,6 +28,7 @@
  * - turn off quota with Q_QUOTAOFF flag for group
  *
  * It is similar to quotactl01.c, only two difference
+ *
  * - use new quotactl_fd syscalls if supports
  * - quota file hidden in filesystem
  *
@@ -208,8 +209,8 @@ static void verify_quota(unsigned int n)
 
 static struct tst_test test = {
 	.needs_root = 1,
-	.needs_kconfigs = (const char *[]) {
-		"CONFIG_QFMT_V2",
+	.needs_drivers = (const char *const []) {
+		"quota_v2",
 		NULL
 	},
 	.test = verify_quota,

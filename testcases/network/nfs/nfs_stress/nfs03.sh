@@ -8,8 +8,6 @@ TST_CLEANUP="nfs03_cleanup"
 TST_SETUP="nfs03_setup"
 TST_TESTFUNC="do_test"
 
-. nfs_lib.sh
-
 DIR_NUM=${DIR_NUM:-"100"}
 FILE_NUM=${FILE_NUM:-"100"}
 THREAD_NUM=${THREAD_NUM:-"1"}
@@ -68,11 +66,13 @@ do_test()
 	cd ../dir1
 	wait $pid1
 	rm_files &
+	pid3=$!
 
 	tst_res TINFO "cd dir2 & removing files"
 	cd ../dir2
 	wait $pid2
 	rm_files
+	wait $pid3
 
 	tst_res TPASS "test done"
 }
@@ -92,4 +92,5 @@ nfs03_cleanup()
 	nfs_cleanup
 }
 
+. nfs_lib.sh
 tst_run

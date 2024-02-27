@@ -1,4 +1,4 @@
-AC_PREREQ(2.61)
+AC_PREREQ(2.64)
 AC_INIT([ltp], [LTP_VERSION], [ltp@lists.linux.it])
 AC_CONFIG_AUX_DIR([.])
 AM_INIT_AUTOMAKE
@@ -10,7 +10,6 @@ AC_CONFIG_FILES([ \
     include/mk/features.mk \
     lib/ltp.pc \
     m4/Makefile \
-    execltp \
 ])
 
 AC_ARG_VAR(HOSTCC, [The C compiler on the host])
@@ -24,7 +23,6 @@ AC_PROG_CC
 # 2.62.
 AC_DEFUN([AC_PROG_AR], [AC_CHECK_TOOL(AR, ar, :)])
 AC_PROG_AR
-AC_PROG_LEX
 AC_PROG_RANLIB
 AC_DEFUN([AC_PROG_STRIP], [AC_CHECK_TOOL(STRIP, strip, :)])
 AC_PROG_STRIP
@@ -42,6 +40,7 @@ AC_CHECK_DECLS([SEM_STAT_ANY],,,[#include <sys/sem.h>])
 
 AC_CHECK_HEADERS_ONCE([ \
     asm/ldt.h \
+    cpuid.h \
     emmintrin.h \
     ifaddrs.h \
     keyutils.h \
@@ -51,14 +50,17 @@ AC_CHECK_HEADERS_ONCE([ \
     linux/close_range.h \
     linux/dccp.h \
     linux/fs.h \
+    linux/futex.h \
     linux/genetlink.h \
     linux/if_alg.h \
     linux/if_ether.h \
     linux/if_packet.h \
     linux/io_uring.h \
+    linux/ioprio.h \
     linux/keyctl.h \
     linux/mempolicy.h \
     linux/module.h \
+    linux/mount.h \
     linux/netlink.h \
     linux/seccomp.h \
     linux/securebits.h \
@@ -70,6 +72,7 @@ AC_CHECK_HEADERS_ONCE([ \
     sys/epoll.h \
     sys/fanotify.h \
     sys/inotify.h \
+    sys/pidfd.h
     sys/prctl.h \
     sys/shm.h \
     sys/timerfd.h \
@@ -89,6 +92,7 @@ AC_CHECK_FUNCS_ONCE([ \
     epoll_pwait \
     epoll_pwait2 \
     execveat \
+    faccessat2 \
     fallocate \
     fchownat \
     fsconfig \
@@ -97,6 +101,8 @@ AC_CHECK_FUNCS_ONCE([ \
     fspick \
     fstatat \
     getauxval \
+    getcontext \
+    getcpu \
     getdents \
     getdents64 \
     io_pgetevents \
@@ -110,11 +116,13 @@ AC_CHECK_FUNCS_ONCE([ \
     mkdirat \
     mknodat \
     modify_ldt \
+    mount_setattr \
     move_mount \
     name_to_handle_at \
     open_tree \
     openat \
     openat2 \
+    pidfd_getfd \
     pidfd_open \
     pidfd_send_signal \
     pkey_mprotect \
@@ -152,7 +160,7 @@ AC_CHECK_FUNCS(mkdtemp,[],AC_MSG_ERROR(mkdtemp() not found!))
 AC_CHECK_MEMBERS([struct fanotify_event_info_fid.fsid.__val],,,[#include <sys/fanotify.h>])
 AC_CHECK_MEMBERS([struct perf_event_mmap_page.aux_head],,,[#include <linux/perf_event.h>])
 AC_CHECK_MEMBERS([struct sigaction.sa_sigaction],[],[],[#include <signal.h>])
-AC_CHECK_MEMBERS([struct statx.stx_mnt_id],,,[
+AC_CHECK_MEMBERS([struct statx.stx_mnt_id, struct statx.stx_dio_mem_align],,,[
 #define _GNU_SOURCE
 #include <sys/stat.h>
 ])
@@ -216,11 +224,20 @@ AC_CHECK_TYPES([struct xt_entry_match, struct xt_entry_target],,,[
 AC_CHECK_TYPES([struct __kernel_old_timeval, struct __kernel_old_timespec, struct __kernel_timespec,
                 struct __kernel_old_itimerspec, struct __kernel_itimerspec],,,[#include <sys/socket.h>])
 
+AC_CHECK_TYPES([struct futex_waitv],,,[#include <linux/futex.h>])
+AC_CHECK_TYPES([struct mount_attr],,,[
+#ifdef HAVE_MOUNT_SETATTR
+# include <sys/mount.h>
+#elif HAVE_LINUX_MOUNT_H
+# include <linux/mount.h>
+#endif
+])
+
 # Tools knobs
 
 # Bash
 AC_ARG_WITH([bash],
-  [AC_HELP_STRING([--with-bash],
+  [AS_HELP_STRING([--with-bash],
     [have the Bourne Again Shell interpreter])],
   [with_bash=$withval],
   [with_bash=no]
@@ -233,24 +250,24 @@ fi
 
 # metadata
 AC_ARG_ENABLE([metadata],
-  [AC_HELP_STRING([--disable-metadata],
+  [AS_HELP_STRING([--disable-metadata],
 	[Disable metadata generation (both HTML and PDF, default no)])],
   [], [enable_metadata=yes]
 )
 AC_ARG_ENABLE([metadata_html],
-  [AC_HELP_STRING([--disable-metadata-html],
+  [AS_HELP_STRING([--disable-metadata-html],
 	[Disable metadata HTML generation (default no)])],
   [], [enable_metadata_html=yes]
 )
 
 AC_ARG_ENABLE([metadata_pdf],
-  [AC_HELP_STRING([--enable-metadata-pdf],
+  [AS_HELP_STRING([--enable-metadata-pdf],
 	[Enable metadata PDF generation (default no)])],
   [], [enable_metadata_pdf=no]
 )
 
 AC_ARG_WITH([metadata_generator],
-  [AC_HELP_STRING([--with-metadata-generator=asciidoc|asciidoctor],
+  [AS_HELP_STRING([--with-metadata-generator=asciidoc|asciidoctor],
 	[Specify metadata generator to use (default autodetect)])],
   [with_metadata_generator=$withval],
   [with_metadata_generator=detect]
@@ -260,7 +277,7 @@ LTP_DOCPARSE
 
 # Expect
 AC_ARG_WITH([expect],
-  [AC_HELP_STRING([--with-expect],
+  [AS_HELP_STRING([--with-expect],
     [have the Tcl/expect library])],
   [with_expect=$withval],
   [with_expect=no]
@@ -273,7 +290,7 @@ fi
 
 # Numa
 AC_ARG_WITH([numa],
-  AC_HELP_STRING([--without-numa],
+  AS_HELP_STRING([--without-numa],
     [without numa support]),
   [with_numa=$withval],
   [with_numa=yes]
@@ -281,7 +298,7 @@ AC_ARG_WITH([numa],
 
 # Perl
 AC_ARG_WITH([perl],
-  [AC_HELP_STRING([--with-perl],
+  [AS_HELP_STRING([--with-perl],
     [have a perl interpreter])],
   [with_perl=$withval],
   [with_perl=no]
@@ -294,7 +311,7 @@ fi
 
 # Python
 AC_ARG_WITH([python],
-  [AC_HELP_STRING([--with-python],
+  [AS_HELP_STRING([--with-python],
     [have a python interpreter])],
   [with_python=$withval],
   [with_python=no]
@@ -307,7 +324,7 @@ fi
 
 # TI RPC
 AC_ARG_WITH([tirpc],
-  AC_HELP_STRING([--without-tirpc],
+  AS_HELP_STRING([--without-tirpc],
     [without libtirpc support]),
   [with_tirpc=$withval],
   [with_tirpc=yes]
@@ -317,20 +334,31 @@ AC_ARG_WITH([tirpc],
 # Testsuites knobs
 
 AC_ARG_WITH([open-posix-testsuite],
-  [AC_HELP_STRING([--with-open-posix-testsuite],
+  [AS_HELP_STRING([--with-open-posix-testsuite],
     [compile and install the open posix testsuite])],
   [with_open_posix_testsuite=$withval],
   [with_open_posix_testsuite=no]
 )
+
+# Allow setting the directoy, where the open posix testsuite is installed to.
+# If nothing is defined, we have to pass our default value to submake
+AC_ARG_WITH([open-posix-testdir],
+  [AS_HELP_STRING([--with-open-posix-testdir=<dir>],
+    [set the directory, where the open posix testsuite will be installed under prefix])],
+  [],
+  [ac_configure_args="$ac_configure_args --with-open-posix-testdir=testcases/open_posix_testsuite"]
+)
+
 if test "x$with_open_posix_testsuite" = xyes; then
     AC_SUBST([WITH_OPEN_POSIX_TESTSUITE],["yes"])
+    AC_CONFIG_SUBDIRS([testcases/open_posix_testsuite])
 else
     AC_SUBST([WITH_OPEN_POSIX_TESTSUITE],["no"])
 fi
 
 # TODO: testcases/realtime requires bash and python.
 AC_ARG_WITH([realtime-testsuite],
-  [AC_HELP_STRING([--with-realtime-testsuite],
+  [AS_HELP_STRING([--with-realtime-testsuite],
     [compile and install the realtime testsuite])],
   [with_realtime_testsuite=$withval],
   [with_realtime_testsuite=no]
@@ -353,7 +381,6 @@ LTP_CHECK_ATOMIC_MEMORY_MODEL
 LTP_CHECK_BUILTIN_CLEAR_CACHE
 LTP_CHECK_CAPABILITY_SUPPORT
 LTP_CHECK_CC_WARN_OLDSTYLE
-LTP_CHECK_CLONE_SUPPORTS_7_ARGS
 LTP_CHECK_CRYPTO
 LTP_CHECK_FORTIFY_SOURCE
 LTP_CHECK_KERNEL_DEVEL
@@ -361,12 +388,15 @@ LTP_CHECK_KEYUTILS_SUPPORT
 LTP_CHECK_LIBMNL
 LTP_CHECK_LINUX_PTRACE
 LTP_CHECK_LINUXRANDOM
-LTP_CHECK_MREMAP_FIXED
 LTP_CHECK_NOMMU_LINUX
 LTP_CHECK_SELINUX
 LTP_CHECK_SYNC_ADD_AND_FETCH
 LTP_CHECK_SYSCALL_EVENTFD
 LTP_CHECK_SYSCALL_FCNTL
+LTP_CHECK_FSVERITY
+
+AX_CHECK_COMPILE_FLAG([-no-pie], [LTP_CFLAGS_NOPIE=1])
+AC_SUBST([LTP_CFLAGS_NOPIE])
 
 if test "x$with_numa" = xyes; then
 	LTP_CHECK_SYSCALL_NUMA
@@ -377,12 +407,28 @@ fi
 AC_DEFINE_UNQUOTED(NUMA_ERROR_MSG, ["$numa_error_msg"], [Error message when no NUMA support])
 
 
-LTP_CHECK_SYSCALL_PERF_EVENT_OPEN
 LTP_CHECK_SYSCALL_SIGNALFD
 LTP_CHECK_SYSCALL_UTIMENSAT
 LTP_CHECK_TASKSTATS
 test "x$with_tirpc" = xyes && LTP_CHECK_TIRPC
 LTP_DETECT_HOST_CPU
+
+AC_MSG_CHECKING([whether linker can handle KVM payloads])
+ltp_backup_ldflags="$LDFLAGS"
+ltp_backup_flags="$[]_AC_LANG_PREFIX[]FLAGS"
+LDFLAGS="-T ${srcdir}/testcases/kernel/kvm/linker/${HOST_CPU}.lds"
+_AC_LANG_PREFIX[]FLAGS=
+AC_LINK_IFELSE([AC_LANG_PROGRAM()],
+  [
+    AC_MSG_RESULT([yes])
+    AC_SUBST([WITH_KVM_TESTSUITE],["yes"])
+  ],
+  [
+    AC_MSG_RESULT([no])
+    AC_SUBST([WITH_KVM_TESTSUITE],["no"])
+  ])
+_AC_LANG_PREFIX[]FLAGS="$ltp_backup_flags"
+LDFLAGS="$ltp_backup_ldflags"
 
 AC_OUTPUT
 
@@ -393,13 +439,13 @@ open posix testsuite: ${with_open_posix_testsuite:-no}
 realtime testsuite: ${with_realtime_testsuite:-no}
 
 LIBRARIES
-keyutils: ${have_keyutils:-no}
+keyutils: ${have_keyutils:-yes}
 libacl: ${have_libacl:-no}
 libaio: ${have_libaio:-no} (aio: ${have_aio:-no})
 libcap: $cap_libs (newer: ${has_newer_libcap:-no})
-libcrypto: $have_libcrypto (sha: ${have_sha:-no})
-libmnl: ${have_libmnl:-no}
-libnuma: ${have_libnuma:-no} (headers: ${have_numa_headers:-no}, v2 headers: ${have_numa_headers_v2:-no})
+libcrypto: ${have_libcrypto:-no} (sha: ${have_sha:-no})
+libmnl: ${have_libmnl:-yes}
+libnuma: ${have_libnuma:-no} (headers: ${have_numa_headers:-yes}, v2 headers: ${have_numa_headers_v2:-no})
 libtirpc: ${have_libtirpc:-no}
 glibc SUN-RPC: ${have_rpc_glibc:-no}
 

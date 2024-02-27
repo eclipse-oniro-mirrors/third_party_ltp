@@ -84,7 +84,7 @@ static void cleanup(void)
 		rm_shm(shm_id_arr[i]);
 
 	if (orig_shmmni != -1)
-		FILE_PRINTF(PATH_SHMMNI, "%ld", orig_shmmni);
+		SAFE_FILE_PRINTF(PATH_SHMMNI, "%ld", orig_shmmni);
 }
 
 static struct tst_test test = {
@@ -96,5 +96,5 @@ static struct tst_test test = {
 	.setup = setup,
 	.cleanup = cleanup,
 	.test_all = test_hugeshmget,
-	.request_hugepages = 128,
+	.hugepages = {128, TST_REQUEST},
 };

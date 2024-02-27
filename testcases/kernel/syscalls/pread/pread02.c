@@ -39,16 +39,16 @@ struct test_case_t {
 static void verify_pread(unsigned int n)
 {
 	struct test_case_t *tc = &tcases[n];
-	char buf;
+	char buf[K1];
 
 	TST_EXP_FAIL2(pread(*tc->fd, &buf, tc->nb, tc->offst), tc->exp_errno,
-		"pread(%d, %zu, %ld) %s", *tc->fd, tc->nb, tc->offst, tc->desc);
+		"pread(%d, %zu, %lld) %s", *tc->fd, tc->nb, (long long)tc->offst, tc->desc);
 }
 
 static void setup(void)
 {
 	SAFE_PIPE(pipe_fd);
-	SAFE_WRITE(1, pipe_fd[1], "x", 1);
+	SAFE_WRITE(SAFE_WRITE_ALL, pipe_fd[1], "x", 1);
 
 	fd = SAFE_OPEN(PREAD_TEMPFILE, O_RDWR | O_CREAT, 0666);
 
