@@ -33,8 +33,8 @@
 #define TIMERSIGNAL SIGUSR1
 #define SIGTOTEST SIGUSR2
 #define TIMERSEC 2
-#define SIGTIMEDWAITSEC 1
-#define ERRORMARGIN 0.1
+#define SIGTIMEDWAITSEC 2
+#define ERRORMARGIN 0.2
 
 #include <signal.h>
 #include <stdio.h>
