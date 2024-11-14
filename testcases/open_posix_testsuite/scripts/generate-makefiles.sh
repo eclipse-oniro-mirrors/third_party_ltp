@@ -310,7 +310,7 @@ generate_makefiles() {
 export PATH="$PATH:`dirname "$0"`"
 
 AUTHORDATE=`grep "Ngie Cooper" "$0" | head -n 1 | sed 's,# *,,'`
-PREFIX=`print-prefix.sh`
+PREFIX=$(print-prefix.sh)
 EXEC_PREFIX="${PREFIX}/bin"
 TOP_SRCDIR=${TOP_SRCDIR:=`dirname "$0"`/..}
 

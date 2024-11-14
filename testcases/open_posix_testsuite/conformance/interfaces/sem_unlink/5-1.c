@@ -89,6 +89,10 @@
 #undef NAME_MAX
 #endif
 
+#define NAME_MAX_OFFSET_1 1
+#define NAME_MAX_OFFSET_2 2
+#define NAME_MAX_OFFSET_3 3
+
 /******************************************************************************/
 /***************************    Test case   ***********************************/
 /******************************************************************************/
@@ -166,7 +170,7 @@ int main(void)
 
 	if (NAME_MAX > 0) {
 		/* create a semaphore with a name longer than NAME_MAX */
-		sem_name = calloc(NAME_MAX + 3, sizeof(char));
+		sem_name = calloc(NAME_MAX + NAME_MAX_OFFSET_3, sizeof(char));
 
 		if (sem_name == NULL) {
 			UNRESOLVED(errno,
@@ -176,9 +180,9 @@ int main(void)
 		/* the space was allocated */
 		sem_name[0] = '/';
 
-		sem_name[NAME_MAX + 2] = '\0';
+		sem_name[NAME_MAX + NAME_MAX_OFFSET_2] = '\0';
 
-		memset(sem_name + 1, 'N', NAME_MAX + 1);
+		memset(sem_name + 1, 'N', NAME_MAX + NAME_MAX_OFFSET_1);
 
 		/* Create the semaphore */
 		sem = sem_open(sem_name, O_CREAT, 0777, 1);
